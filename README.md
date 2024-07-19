@@ -119,6 +119,7 @@ X86 Ubuntu version: ubuntu22.04
 | iou_threshold | nms iou threshold | No | 0.45 | |
 | nms_top_k | Detect the first k boxes | No | 50 | |
 | texts | detect types | No | "dog,cat" | Separate each category with a comma in the middle |
+| dump_render_img     | Whether to render, 0: no; 1: yes       | No                   | 0                   |                                                                         |
 | ai_msg_pub_topic_name | Topic name for publishing intelligent results for web display | No                   | /hobot_yolo_world | |
 | ros_img_sub_topic_name | Topic name for subscribing image msg | No                   | /image | |
 | ros_string_sub_topic_name | Topic name for subscribing string msg to change detect types| No                   | /target_words | |
@@ -262,3 +263,8 @@ name: yolo_world.
 [INFO] [0000105573.499860466] [hobot_yolo_world]: out box size: 1
 [INFO] [0000105573.500038966] [hobot_yolo_world]: det rect: 0.495301 125.662 315.754 639.413, det type: dog, score:0.40681
 ```
+
+## Render img:
+![image](img/render.jpeg)
+
+Note: Preprocessing Image involves scaling and padding.
