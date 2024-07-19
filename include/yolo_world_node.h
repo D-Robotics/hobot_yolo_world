@@ -48,10 +48,10 @@ struct YoloWorldOutput : public DnnNodeOutput {
   // resize参数，用于算法检测结果的映射
   float ratio = 1.0;  //缩放比例系数，无需缩放为1
 
-  // 时间戳
-  std::shared_ptr<std_msgs::msg::Header> image_msg_header = nullptr;
-
   std::vector<std::string> class_names; 
+
+  // 图片数据用于渲染
+  std::shared_ptr<hobot::dnn_node::DNNTensor> tensor_image;
 
   ai_msgs::msg::Perf perf_preprocess;
 };
@@ -127,6 +127,9 @@ class YoloWorldNode : public DnnNode {
 
   // 用于预测的图片来源，0：本地图片；1：订阅到的image msg
   int feed_type_ = 0;
+
+  // 是否在本地渲染并保存渲染后的图片
+  int dump_render_img_ = 0;
 
   // 使用shared mem通信方式订阅图片
   int is_shared_mem_sub_ = 0;

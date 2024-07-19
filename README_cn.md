@@ -122,6 +122,7 @@ hbm_img_msgs为自定义的图片消息格式, 用于shared mem场景下的图�
 | iou_threshold | nms iou阈值 | 否 | 0.45 | |
 | nms_top_k | 检测前k个框 | 否 | 50 | |
 | texts | 检测类型 | 否 | "dog,cat" | 每个类别中间通过逗号隔开 |
+| dump_render_img    | 是否进行渲染，0：否；1：是            | 否                   | 0                   |                                                                         |
 | ai_msg_pub_topic_name | 发布智能结果的topicname,用于web端展示 | 否                   | /hobot_yolo_world | |
 | ros_img_sub_topic_name | 接收ros图片话题名 | 否                   | /image | |
 | ros_string_sub_topic_name | 接收string消息话题名改变检测类别 | 否                   | /target_words | |
@@ -271,3 +272,8 @@ name: yolo_world.
 [INFO] [0000105573.499860466] [hobot_yolo_world]: out box size: 1
 [INFO] [0000105573.500038966] [hobot_yolo_world]: det rect: 0.495301 125.662 315.754 639.413, det type: dog, score:0.40681
 ```
+
+## 渲染结果
+![image](img/render.jpeg)
+
+说明：前处理对图片进行缩放和补全处理。

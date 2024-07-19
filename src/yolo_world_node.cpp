@@ -25,6 +25,7 @@
 #include <unistd.h>
 
 #include "dnn_node/dnn_node.h"
+#include "include/image_utils.h"
 #include "include/post_process/yolo_world_output_parser.h"
 
 #include "include/yolo_world_node.h"
@@ -62,6 +63,7 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   // 更新配置
   this->declare_parameter<int>("feed_type", feed_type_);
   this->declare_parameter<std::string>("image", image_file_);
+  this->declare_parameter<int>("dump_render_img", dump_render_img_);
   this->declare_parameter<int>("is_shared_mem_sub", is_shared_mem_sub_);
   this->declare_parameter<float>("score_threshold", score_threshold_);
   this->declare_parameter<float>("iou_threshold", iou_threshold_);
@@ -77,6 +79,7 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
 
   this->get_parameter<int>("feed_type", feed_type_);
   this->get_parameter<std::string>("image", image_file_);
+  this->get_parameter<int>("dump_render_img", dump_render_img_);
   this->get_parameter<int>("is_shared_mem_sub", is_shared_mem_sub_);
   this->get_parameter<float>("score_threshold", score_threshold_);
   this->get_parameter<float>("iou_threshold", iou_threshold_);
@@ -91,6 +94,7 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
     ss << "Parameter:"
        << "\n feed_type(0:local, 1:sub): " << feed_type_
        << "\n image: " << image_file_
+       << "\n dump_render_img: " << dump_render_img_
        << "\n is_shared_mem_sub: " << is_shared_mem_sub_
        << "\n score_threshold: " << score_threshold_
        << "\n iou_threshold: " << iou_threshold_
@@ -301,7 +305,8 @@ int YoloWorldNode::GetTextIndex(
               "Vocabullary has no target texts.");
     return -1;
   }
-  for (int i = 0; i < (indice_.size() - indexs.size()); i++) {
+  int num = 32 - indexs.size();
+  for (int i = 0; i < num; i++) {
     indexs.push_back(index);
     target_texts.push_back(target_text);
   }
@@ -418,6 +423,11 @@ int YoloWorldNode::PostProcess(
 
   pub_data->header.set__stamp(parser_output->msg_header->stamp);
   pub_data->header.set__frame_id(parser_output->msg_header->frame_id);
+
+  // 如果开启了渲染，本地渲染并存储图片
+  if (dump_render_img_ && parser_output->tensor_image) {
+    ImageUtils::Render(parser_output->tensor_image, pub_data);
+  }
 
   if (parser_output->ratio != 1.0) {
     // 前处理有对图片进行resize，需要将坐标映射到对应的订阅图片分辨率
@@ -541,6 +551,9 @@ int YoloWorldNode::FeedFromLocal() {
   dnn_output->perf_preprocess.set__type(model_name_ + "_preprocess");
   dnn_output->msg_header = std::make_shared<std_msgs::msg::Header>();
   dnn_output->msg_header->set__frame_id("feedback");
+  if (dump_render_img_) {
+    dnn_output->tensor_image = tensor_image;
+  }
 
   // 4. 开始预测
   if (Run(inputs, dnn_output, true) != 0) {
@@ -646,6 +659,9 @@ void YoloWorldNode::RosImgProcess(
   dnn_output->perf_preprocess.stamp_end.sec = time_now.tv_sec;
   dnn_output->perf_preprocess.stamp_end.nanosec = time_now.tv_nsec;
   dnn_output->perf_preprocess.set__type(model_name_ + "_preprocess");
+  if (dump_render_img_) {
+    dnn_output->tensor_image = tensor_image;
+  }
 
   // 4. 开始预测
   if (Run(inputs, dnn_output, true) != 0) {
@@ -749,6 +765,9 @@ void YoloWorldNode::SharedMemImgProcess(
   dnn_output->perf_preprocess.stamp_end.sec = time_now.tv_sec;
   dnn_output->perf_preprocess.stamp_end.nanosec = time_now.tv_nsec;
   dnn_output->perf_preprocess.set__type(model_name_ + "_preprocess");
+  if (dump_render_img_) {
+    dnn_output->tensor_image = tensor_image;
+  }
 
   // 4. 开始预测
   if (Run(inputs, dnn_output, true) != 0) {

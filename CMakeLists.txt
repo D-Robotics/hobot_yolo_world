@@ -95,6 +95,7 @@ link_directories(
 
 add_executable(${PROJECT_NAME}
   src/main.cpp
+  src/image_utils.cpp
   src/yolo_world_node.cpp
   src/post_process/yolo_world_output_parser.cpp
 )
@@ -132,6 +133,11 @@ install(DIRECTORY
 install(DIRECTORY
   ${PROJECT_SOURCE_DIR}/config/${PREFIX_PATH}/
   DESTINATION lib/${PROJECT_NAME}/config/
+)
+
+install(DIRECTORY
+  ${PROJECT_SOURCE_DIR}/tool/
+  DESTINATION lib/${PROJECT_NAME}/tool/
 )
 
 install(FILES
