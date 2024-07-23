@@ -9,7 +9,7 @@ class YOLOEncodeTextNode():
     def __init__(self):
         super().__init__()
         
-        self.model_file_name = "text_encoder.onnx"
+        self.model_file_name = "huggingclip_text_encode.onnx"
 
         self.sess = rt.InferenceSession(self.model_file_name)
 
@@ -17,12 +17,15 @@ class YOLOEncodeTextNode():
         start_time = time.time()
         
         # 1. simple tokenizer
-        text_np = clip.tokenize(texts)
+        text_np = clip.tokenize(texts, 9)
+        text_np = text_np.astype(np.int64)
+        attention_np = np.ones(9).reshape(1, 9).astype(np.int64)
 
         # 2. model inference 
         input_name_0 = self.sess.get_inputs()[0].name
+        input_name_1 = self.sess.get_inputs()[1].name
         output_name_0 = self.sess.get_outputs()[0].name
-        text_features_np = self.sess.run([output_name_0],{input_name_0:text_np})[0]
+        text_features_np = self.sess.run([output_name_0],{input_name_0:text_np, input_name_1:attention_np})[0]
 
         return text_features_np
 
