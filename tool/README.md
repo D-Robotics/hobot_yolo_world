@@ -6,8 +6,8 @@ Tool: Used to generate a text embeddings file.
 # Feature Introduction
 This tool allows users to customize the categories required for YOLO World dnn node detection. Specific usage:
 1. Store the category to be detected in the "class.list" file in the current directory.
-2. Download the required text encoder model file "text_coder.onnx".
-3. Run the script to generate the text embeddings named "offsine-vocabulary_ embeddings.json".
+2. Download the required text encoder model file "huggingclip_text_encode.onnx".
+3. Run the script to generate the text embeddings named "offsine-vocabulary_embeddings.json".
 
 # Development Environment
 
@@ -22,7 +22,7 @@ The entire project directory structure is as follows
 ├── __init__.py
 ├── class.list
 ├── main.py
-├── text_encoder.onnx
+├── huggingclip_text_encode.onnx
 └── clip
     ├── __init__.py
     ├── bpe_simple_vocab_16e6.txt.gz
@@ -32,14 +32,10 @@ The entire project directory structure is as follows
 
 # Usage
 
-wget http://sunrise.horizon.cc/models/clip_encode_text/text_encoder.tar.gz
-mkdir -p config
-sudo tar -xf text_encoder.tar.gz -C config
-
 ```shell
 # Download the model
-wget http://sunrise.horizon.cc/models/yoloworld_encode_text/text_encoder.tar.gz
-sudo tar -xf text_encoder.tar.gz -C tool
+wget http://sunrise.horizon.cc/models/yoloworld_encode_text/huggingclip_text_encode.tar.gz
+sudo tar -xf huggingclip_text_encode.tar.gz -C tool
 
 # Run the script
 python3 main.py
