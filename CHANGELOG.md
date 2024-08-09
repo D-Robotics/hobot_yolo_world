@@ -1,5 +1,9 @@
 # Changelog for package hobot_yolo_world
 
+tros_0.3.0 (2024-08-19)
+------------------
+1. 更新yolo-world模型与词汇表, 增强水渍检测的能力。
+
 tros_0.2.0 (2024-07-19)
 ------------------
 1. 新增python工具脚本, 用以生成词汇编码特征 offline_vocabulary_embeddings.json。

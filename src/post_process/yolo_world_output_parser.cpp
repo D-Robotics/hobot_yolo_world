@@ -43,13 +43,22 @@ int32_t YoloOutputParser::PostProcess(
   perception.type = Perception::DET;
   std::vector<Detection> dets;
   
-  int num_pred = tensors[0]->properties.alignedShape.dimensionSize[1];
+  int num_pred = 0;
+  int num_class = 0;
+  if (tensors[0]->properties.tensorLayout == HB_DNN_LAYOUT_NCHW) {
+    num_pred = tensors[0]->properties.alignedShape.dimensionSize[1];
+    num_class = tensors[0]->properties.alignedShape.dimensionSize[2];
+  } else if (tensors[0]->properties.tensorLayout == HB_DNN_LAYOUT_NHWC) {
+    num_pred = tensors[0]->properties.alignedShape.dimensionSize[3];
+    num_class = tensors[0]->properties.alignedShape.dimensionSize[1];
+  }
+
   for (int i = 0; i < num_pred; i++) {
-    float *score_data = scores_data + i * 32;
+    float *score_data = scores_data + i * num_class;
     float *box_data = boxes_data + i * 4;
     float max_score = std::numeric_limits<float>::lowest(); // 初始最大值为最小可能值
     int max_index = -1;
-    for (int k = 0; k < 32; ++k) {
+    for (int k = 0; k < num_class; ++k) {
       if (score_data[k] > max_score) {
           max_score = score_data[k];
           max_index = k;
