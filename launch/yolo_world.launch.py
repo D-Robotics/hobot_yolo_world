@@ -36,6 +36,9 @@ def generate_launch_description():
     msg_pub_topic_name_launch_arg = DeclareLaunchArgument(
         "yolo_world_msg_pub_topic_name", default_value=TextSubstitution(text="hobot_yolo_world")
     )
+    texts_launch_arg = DeclareLaunchArgument(
+        "yolo_world_texts", default_value=TextSubstitution(text="liquid stain,mild stain,solid stain,congee stain")
+    )
 
     camera_type = os.getenv('CAM_TYPE')
     print("camera_type is ", camera_type)
@@ -48,7 +51,7 @@ def generate_launch_description():
         # usb cam图片发布pkg
         usb_cam_device_arg = DeclareLaunchArgument(
             'device',
-            default_value='/dev/video8',
+            default_value='/dev/video0',
             description='usb camera device')
 
         usb_node = IncludeLaunchDescription(
@@ -71,7 +74,7 @@ def generate_launch_description():
         # 本地图片发布
         feedback_picture_arg = DeclareLaunchArgument(
             'publish_image_source',
-            default_value='./config/dog.jpg',
+            default_value='./config/00131.jpg',
             description='feedback picture')
 
         fb_node = IncludeLaunchDescription(
@@ -84,7 +87,9 @@ def generate_launch_description():
                 'publish_image_format': 'jpg',
                 'publish_is_shared_mem': 'True',
                 'publish_message_topic_name': '/hbmem_img',
-                'publish_fps': '5'
+                'publish_fps': '1',
+                'publish_output_image_w': LaunchConfiguration('yolo_world_image_width'),
+                'publish_output_image_h': LaunchConfiguration('yolo_world_image_height')
             }.items()
         )
 
@@ -172,7 +177,9 @@ def generate_launch_description():
             {"feed_type": 1},
             {"is_shared_mem_sub": 1},
             {"msg_pub_topic_name": LaunchConfiguration(
-                "yolo_world_msg_pub_topic_name")}
+                "yolo_world_msg_pub_topic_name")},
+            {"texts": LaunchConfiguration(
+                "yolo_world_texts")}
         ],
         arguments=['--ros-args', '--log-level', 'info']
     )
@@ -190,25 +197,25 @@ def generate_launch_description():
             image_width_launch_arg,
             image_height_launch_arg,
             msg_pub_topic_name_launch_arg,
+            texts_launch_arg,
             # 启动零拷贝环境配置node
             shared_mem_node,
             # 图片发布pkg
             cam_node,
             # 图片编解码&发布pkg
-            # jpeg_codec_node,
+            jpeg_codec_node,
             # 启动yoloworld pkg
             yolo_world_node,
             # 启动web展示pkg
-            # web_node
+            web_node
         ])
     else:
         return LaunchDescription([
             camera_device_arg,
-            config_file_launch_arg,
-            dump_render_launch_arg,
             image_width_launch_arg,
             image_height_launch_arg,
             msg_pub_topic_name_launch_arg,
+            texts_launch_arg,
             # 启动零拷贝环境配置node
             shared_mem_node,
             # 图片发布pkg

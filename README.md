@@ -118,7 +118,7 @@ X86 Ubuntu version: ubuntu22.04
 | score_threshold | boxes confidence threshold | No | 0.05 | |
 | iou_threshold | nms iou threshold | No | 0.45 | |
 | nms_top_k | Detect the first k boxes | No | 50 | |
-| texts | detect types | No | "dog,cat" | Separate each category with a comma in the middle |
+| texts | detect types | No | "liquid stain,mild stain,solid stain,congee stain" | Separate each category with a comma in the middle |
 | dump_render_img     | Whether to render, 0: no; 1: yes       | No                   | 0                   |                                                                         |
 | ai_msg_pub_topic_name | Topic name for publishing intelligent results for web display | No                   | /hobot_yolo_world | |
 | ros_img_sub_topic_name | Topic name for subscribing image msg | No                   | /image | |
@@ -129,7 +129,7 @@ X86 Ubuntu version: ubuntu22.04
 - Topic control: hobot_yolo_world supports controlling detection categories through string msg topic messages, which is the main difference between yolo-world and regular yolo. The example of using the string msg topic is as follows. Among them, /targetw_words is the topic name. The data in the 'data' field is a string string, which is separated by commas when setting multiple detection categories.
 
 ```shell
-ros2 topic pub /target_words std_msgs/msg/String "{data: 'dog,person'}"
+ros2 topic pub /target_words std_msgs/msg/String "{data: 'liquid stain,mild stain,solid stain,congee stain'}"
 ```
 
 ## Running
@@ -144,19 +144,19 @@ source ./install/local_setup.bash
 # Copy based on the actual installation path (the installation path in the docker is install/lib/hobot_yolo_world/config/, the copy command is cp -r install/lib/hobot_yolo_world/config/ .).
 cp -r install/hobot_yolo_world/lib/hobot_yolo_world/config/ .
 
-# Run mode 1:Use local JPG format images for backflow prediction, with input categories of dog and cat:
+# Run mode 1:Use local JPG format images for backflow prediction, with input categories:
 
-ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/dog.jpg -p image_type:=0 -p texts:="dog,cat"
+ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/00131.jpg -p image_type:=0 -p texts:="liquid stain,mild stain,solid stain,congee stain" -p dump_render_img:=1
 
 # Run mode 2:Use the subscribed image msg (topic name: /image) for prediction, set the controlled topic name (topic name: /target_words) to and set the log level to warn. At the same time, send a string topic (topic name: /target_words) in another window to change the detection category:
 
 ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=1 --ros-args --log-level warn -p ros_string_sub_topic_name:="/target_words"
 
-ros2 topic pub /target_words std_msgs/msg/String "{data: 'dog,person'}"
+ros2 topic pub /target_words std_msgs/msg/String "{data: 'liquid stain,mild stain,solid stain,congee stain'}"
 
-# Run mode 3: Use shared memory communication method (topic name: /hbmem_img) to perform inference in asynchronous mode and set the log level to warn, with input categories of dog and cat:
+# Run mode 3: Use shared memory communication method (topic name: /hbmem_img) to perform inference in asynchronous mode and set the log level to warn, with input categories:
 
-ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=1 -p is_shared_mem_sub:=1 -p texts:="dog,cat" --ros-args --log-level warn
+ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=1 -p is_shared_mem_sub:=1 -p texts:="liquid stain,mild stain,solid stain,congee stain" --ros-args --log-level warn
 ```
 
 To run in mode 2 using a launch file:
@@ -184,16 +184,16 @@ export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:./install/lib/
 # Copy the configuration used by the example and the local image used for inference
 cp -r install/lib/hobot_yolo_world/config/ .
 
-# Run mode 1:Use local JPG format images for backflow prediction, with input categories of dog and cat:
-./install/lib/hobot_yolo_world/hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/dog.jpg -p image_type:=0 -p texts:="dog,cat"
+# Run mode 1:Use local JPG format images for backflow prediction, with input categories:
+./install/lib/hobot_yolo_world/hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/00131.jpg -p image_type:=0 -p texts:="liquid stain,mild stain,solid stain,congee stain" -p dump_render_img:=1
 
 # Run mode 2:Use the subscribed image msg (topic name: /image) for prediction, set the controlled topic name (topic name: /target_words) to and set the log level to warn. At the same time, send a string topic (topic name: /target_words) in another window to change the detection category:
 ./install/lib/hobot_yolo_world/hobot_yolo_world --ros-args -p feed_type:=1 --ros-args --log-level warn -p ros_string_sub_topic_name:="/target_words"
 
-ros2 topic pub /target_words std_msgs/msg/String "{data: 'dog,person'}"
+ros2 topic pub /target_words std_msgs/msg/String "{data: 'liquid stain,mild stain,solid stain,congee stain'}"
 
-# Run mode 3: Use shared memory communication method (topic name: /hbmem_img) to perform inference in asynchronous mode and set the log level to warn, with input categories of dog and cat:
-./install/lib/hobot_yolo_world/hobot_yolo_world --ros-args -p feed_type:=1 -p is_shared_mem_sub:=1 -p texts:="dog,cat" --ros-args --log-level warn
+# Run mode 3: Use shared memory communication method (topic name: /hbmem_img) to perform inference in asynchronous mode and set the log level to warn, with input categories:
+./install/lib/hobot_yolo_world/hobot_yolo_world --ros-args -p feed_type:=1 -p is_shared_mem_sub:=1 -p texts:="liquid stain,mild stain,solid stain,congee stain" --ros-args --log-level warn
 ```
 
 ## Run on X86 Ubuntu system:
@@ -215,56 +215,58 @@ ros2 launch hobot_yolo_world yolo_world.launch.py
 
 log:
 
-Command executed: `ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/dog.jpg -p image_type:=0 -p texts:="dog,cat"`
+Command executed: `ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/00131.jpg -p image_type:=0 -p texts:="liquid stain,mild stain,solid stain,congee stain"`
 
 ```shell
-[WARN] [0000105571.958746757] [hobot_yolo_world]: This is hobot yolo world!
-[WARN] [0000105572.027101757] [hobot_yolo_world]: Parameter:
+[WARN] [0000073539.858080941] [hobot_yolo_world]: This is hobot yolo world!
+[WARN] [0000073539.928492066] [hobot_yolo_world]: Parameter:
  feed_type(0:local, 1:sub): 0
- image: config/dog.jpg
+ image: config/00131.jpg
+ dump_render_img: 0
  is_shared_mem_sub: 0
  score_threshold: 0.05
  iou_threshold: 0.45
  nms_top_k: 50
- texts: dog,cat
+ texts: liquid stain,mild stain,solid stain,congee stain
  ai_msg_pub_topic_name: /hobot_yolo_world
  ros_img_sub_topic_name: /image
  ros_string_sub_topic_name: /target_words
-[WARN] [0000105572.200221257] [hobot_yolo_world]: Parameter:
+[WARN] [0000073539.934220983] [hobot_yolo_world]: Parameter:
  model_file_name: config/yolo_world.bin
  model_name:
-[INFO] [0000105572.200349090] [dnn]: Node init.
-[INFO] [0000105572.200386090] [hobot_yolo_world]: Set node para.
-[WARN] [0000105572.200428507] [hobot_yolo_world]: model_file_name_: config/yolo_world.bin, task_num: 4
-[INFO] [0000105572.200481298] [dnn]: Model init.
+[INFO] [0000073539.934344983] [dnn]: Node init.
+[INFO] [0000073539.934384149] [hobot_yolo_world]: Set node para.
+[WARN] [0000073539.934426691] [hobot_yolo_world]: model_file_name_: config/yolo_world.bin, task_num: 4
+[INFO] [0000073539.934479483] [dnn]: Model init.
 [BPU_PLAT]BPU Platform Version(1.3.6)!
-[HBRT] set log level as 0. version = 3.15.49.0
-[DNN] Runtime version = 1.23.8_(3.15.49 HBRT)
-[A][DNN][packed_model.cpp:247][Model](1970-01-02,05:19:32.890.945) [HorizonRT] The model builder version = 1.23.6
-[INFO] [0000105573.170551799] [dnn]: The model input 0 width is 640 and height is 640
-[INFO] [0000105573.170660257] [dnn]: The model input 1 width is 1 and height is 512
-[INFO] [0000105573.170822466] [dnn]:
+[HBRT] set log level as 0. version = 3.15.52.0
+[DNN] Runtime version = 1.23.9_(3.15.52 HBRT)
+[A][DNN][packed_model.cpp:247][Model](1970-01-01,20:25:40.512.332) [HorizonRT] The model builder version = 1.23.5
+[W][DNN]bpu_model_info.cpp:491][Version](1970-01-01,20:25:40.722.986) Model: yolo_world_epoch_40_no_pad_offline_vocab_static_norm_new. Inconsistency between the hbrt library version 3.15.52.0 and the model build version 3.15.47.0 detected, in order to ensure correct model results, it is recommended to use compilation tools and the BPU SDK from the same OpenExplorer package.
+[INFO] [0000073540.731020608] [dnn]: The model input 0 width is 3 and height is 640
+[INFO] [0000073540.731121941] [dnn]: The model input 1 width is 1 and height is 512
+[INFO] [0000073540.731290525] [dnn]:
 Model Info:
-name: yolo_world.
+name: yolo_world_epoch_40_no_pad_offline_vocab_static_norm_new.
 [input]
- - (0) Layout: NCHW, Shape: [1, 3, 640, 640], Type: HB_DNN_TENSOR_TYPE_F32.
- - (1) Layout: NCHW, Shape: [1, 32, 512, 1], Type: HB_DNN_TENSOR_TYPE_F32.
+ - (0) Layout: NHWC, Shape: [1, 640, 640, 3], Type: HB_DNN_TENSOR_TYPE_F32.
+ - (1) Layout: NHWC, Shape: [1, 4, 512, 1], Type: HB_DNN_TENSOR_TYPE_F32.
 [output]
- - (0) Layout: NCHW, Shape: [1, 8400, 32, 1], Type: HB_DNN_TENSOR_TYPE_F32.
+ - (0) Layout: NCHW, Shape: [1, 8400, 4, 1], Type: HB_DNN_TENSOR_TYPE_F32.
  - (1) Layout: NCHW, Shape: [1, 8400, 4, 1], Type: HB_DNN_TENSOR_TYPE_F32.
 
-[INFO] [0000105573.170896757] [dnn]: Task init.
-[INFO] [0000105573.173133966] [dnn]: Set task_num [4]
-[WARN] [0000105573.173188007] [hobot_yolo_world]: Get model name: yolo_world from load model.
-[INFO] [0000105573.173228924] [hobot_yolo_world]: The model input width is 640 and height is 640
-[WARN] [0000105573.173286549] [hobot_yolo_world]: Create ai msg publisher with topic_name: /hobot_yolo_world
-[INFO] [0000105573.198971966] [hobot_yolo_world]: Dnn node feed with local image: config/dog.jpg
-[INFO] [0000105573.495347382] [hobot_yolo_world]: Output from frame_id: feedback, stamp: 0.0
-[INFO] [0000105573.499860466] [hobot_yolo_world]: out box size: 1
-[INFO] [0000105573.500038966] [hobot_yolo_world]: det rect: 0.495301 125.662 315.754 639.413, det type: dog, score:0.40681
+[INFO] [0000073540.731377233] [dnn]: Task init.
+[INFO] [0000073540.733611483] [dnn]: Set task_num [4]
+[WARN] [0000073540.733678275] [hobot_yolo_world]: Get model name: yolo_world_epoch_40_no_pad_offline_vocab_static_norm_new from load model.
+[INFO] [0000073540.733720691] [hobot_yolo_world]: The model input width is 640 and height is 640
+[WARN] [0000073540.733783483] [hobot_yolo_world]: Create ai msg publisher with topic_name: /hobot_yolo_world
+[INFO] [0000073540.758860233] [hobot_yolo_world]: Dnn node feed with local image: config/00131.jpg
+[INFO] [0000073540.954308816] [hobot_yolo_world]: Output from frame_id: feedback, stamp: 0.0
+[INFO] [0000073540.955560941] [hobot_yolo_world]: out box size: 1
+[INFO] [0000073540.955676525] [hobot_yolo_world]: det rect: 116.345 278.612 442.626 336.136, det type: liquid stain, score:0.855555
 ```
 
 ## Render img:
-![image](img/render.jpeg)
+![image](img/render_yolo_world.jpeg)
 
 Note: Preprocessing Image involves scaling and padding.

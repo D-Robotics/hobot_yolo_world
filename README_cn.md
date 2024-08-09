@@ -116,12 +116,12 @@ hbm_img_msgs为自定义的图片消息格式, 用于shared mem场景下的图�
 | 参数名             | 解释                                  | 是否必须             | 默认值              | 备注                                                                    |
 | ------------------ | ------------------------------------- | -------------------- | ------------------- | ----------------------------------------------------------------------- |
 | feed_type          | 图片来源, 0：本地；1：订阅            | 否                   | 0                   |                                                                         |
-| image              | 本地图片地址                          | 否                   | config/dog.jpg     |                                                                         |
+| image              | 本地图片地址                          | 否                   | config/00131.jpg     |                                                                         |
 | is_shared_mem_sub  | 使用shared mem通信方式订阅图片        | 否                   | 0                   |                                                                         |
 | score_threshold | 模型输出置信度阈值 | 否 | 0.05 | |
 | iou_threshold | nms iou阈值 | 否 | 0.45 | |
 | nms_top_k | 检测前k个框 | 否 | 50 | |
-| texts | 检测类型 | 否 | "dog,cat" | 每个类别中间通过逗号隔开 |
+| texts | 检测类型 | 否 | "liquid stain,mild stain,solid stain,congee stain" | 每个类别中间通过逗号隔开 |
 | dump_render_img    | 是否进行渲染，0：否；1：是            | 否                   | 0                   |                                                                         |
 | ai_msg_pub_topic_name | 发布智能结果的topicname,用于web端展示 | 否                   | /hobot_yolo_world | |
 | ros_img_sub_topic_name | 接收ros图片话题名 | 否                   | /image | |
@@ -133,7 +133,7 @@ hbm_img_msgs为自定义的图片消息格式, 用于shared mem场景下的图�
 - 控制话题：hobot_yolo_world 支持通过string msg话题消息控制检测类别, 此为yolo-world与常规yolo主要区别。string msg话题使用示例如下。其中 /target_words 为话题名。data字段中的数据为string字符串, 设置多种检测类别时, 通过逗号隔开。
 
 ```
-ros2 topic pub /target_words std_msgs/msg/String "{data: 'dog,person'}"
+ros2 topic pub /target_words std_msgs/msg/String "{data: 'liquid stain,mild stain,solid stain,congee stain'}"
 ```
 
 ## 运行
@@ -153,17 +153,17 @@ source ./install/local_setup.bash
 cp -r install/hobot_yolo_world/lib/hobot_yolo_world/config/ .
 
 # 运行模式1：
-# 使用本地jpg格式图片进行回灌预测, 输入类别为dog,cat
-ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/dog.jpg -p image_type:=0 -p texts:="dog,cat"
+# 使用本地jpg格式图片进行回灌预测, 输入自定义类别
+ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/00131.jpg -p image_type:=0 -p texts:="liquid stain,mild stain,solid stain,congee stain" -p dump_render_img:=1
 
 # 运行模式2：
 # 使用订阅到的image msg(topic为/image)进行预测, 设置受控话题名(/target_words)为并设置log级别为warn。同时在另一个窗口发送string话题(topic为/target_words) 变更检测类别
 ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=1 --ros-args --log-level warn -p ros_string_sub_topic_name:="/target_words"
 
-ros2 topic pub /target_words std_msgs/msg/String "{data: 'dog,person'}"
+ros2 topic pub /target_words std_msgs/msg/String "{data: 'liquid stain,mild stain,solid stain,congee stain'}"
 
-# 运行模式3：使用shared mem通信方式(topic为/hbmem_img)进行预测, 并设置log级别为warn, 输入类别为dog,cat。
-ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=1 -p is_shared_mem_sub:=1 -p texts:="dog,cat" --ros-args --log-level warn
+# 运行模式3：使用shared mem通信方式(topic为/hbmem_img)进行预测, 并设置log级别为warn, 输入自定义类别。
+ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=1 -p is_shared_mem_sub:=1 -p texts:="liquid stain,mild stain,solid stain,congee stain" --ros-args --log-level warn
 
 ```
 
@@ -192,17 +192,17 @@ export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:./install/lib/
 cp -r install/lib/hobot_yolo_world/config/ .
 
 # 运行模式1：
-# 使用本地jpg格式图片进行回灌预测, 输入类别为dog,cat
-./install/lib/hobot_yolo_world/hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/dog.jpg -p image_type:=0 -p texts:="dog,cat"
+# 使用本地jpg格式图片进行回灌预测, 输入自定义类别
+./install/lib/hobot_yolo_world/hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/00131.jpg -p image_type:=0 -p texts:="liquid stain,mild stain,solid stain,congee stain" -p dump_render_img:=1
 
 # 运行模式2：
 # 使用订阅到的image msg(topic为/image)进行预测, 设置受控话题名(/target_words)为并设置log级别为warn。同时在另一个窗口发送string话题(topic为/target_words) 变更检测类别
 ./install/lib/hobot_yolo_world/hobot_yolo_world --ros-args -p feed_type:=1 --ros-args --log-level warn -p ros_string_sub_topic_name:="/target_words"
 
-ros2 topic pub /target_words std_msgs/msg/String "{data: 'dog,person'}"
+ros2 topic pub /target_words std_msgs/msg/String "{data: 'liquid stain,mild stain,solid stain,congee stain'}"
 
 # 运行模式3：使用shared mem通信方式(topic为/hbmem_img)通过异步模式进行预测, 并设置log级别为warn
-./install/lib/hobot_yolo_world/hobot_yolo_world --ros-args -p feed_type:=1 -p is_shared_mem_sub:=1 -p texts:="dog,cat" --ros-args --log-level warn
+./install/lib/hobot_yolo_world/hobot_yolo_world --ros-args -p feed_type:=1 -p is_shared_mem_sub:=1 -p texts:="liquid stain,mild stain,solid stain,congee stain" --ros-args --log-level warn
 
 ```
 
@@ -224,56 +224,58 @@ ros2 launch hobot_yolo_world yolo_world.launch.py
 
 log：
 
-运行命令：`ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/dog.jpg -p image_type:=0 -p texts:="dog,cat"`
+运行命令：`ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/00131.jpg -p image_type:=0 -p texts:="liquid stain,mild stain,solid stain,congee stain"`
 
 ```shell
-[WARN] [0000105571.958746757] [hobot_yolo_world]: This is hobot yolo world!
-[WARN] [0000105572.027101757] [hobot_yolo_world]: Parameter:
+[WARN] [0000073539.858080941] [hobot_yolo_world]: This is hobot yolo world!
+[WARN] [0000073539.928492066] [hobot_yolo_world]: Parameter:
  feed_type(0:local, 1:sub): 0
- image: config/dog.jpg
+ image: config/00131.jpg
+ dump_render_img: 0
  is_shared_mem_sub: 0
  score_threshold: 0.05
  iou_threshold: 0.45
  nms_top_k: 50
- texts: dog,cat
+ texts: liquid stain,mild stain,solid stain,congee stain
  ai_msg_pub_topic_name: /hobot_yolo_world
  ros_img_sub_topic_name: /image
  ros_string_sub_topic_name: /target_words
-[WARN] [0000105572.200221257] [hobot_yolo_world]: Parameter:
+[WARN] [0000073539.934220983] [hobot_yolo_world]: Parameter:
  model_file_name: config/yolo_world.bin
  model_name:
-[INFO] [0000105572.200349090] [dnn]: Node init.
-[INFO] [0000105572.200386090] [hobot_yolo_world]: Set node para.
-[WARN] [0000105572.200428507] [hobot_yolo_world]: model_file_name_: config/yolo_world.bin, task_num: 4
-[INFO] [0000105572.200481298] [dnn]: Model init.
+[INFO] [0000073539.934344983] [dnn]: Node init.
+[INFO] [0000073539.934384149] [hobot_yolo_world]: Set node para.
+[WARN] [0000073539.934426691] [hobot_yolo_world]: model_file_name_: config/yolo_world.bin, task_num: 4
+[INFO] [0000073539.934479483] [dnn]: Model init.
 [BPU_PLAT]BPU Platform Version(1.3.6)!
-[HBRT] set log level as 0. version = 3.15.49.0
-[DNN] Runtime version = 1.23.8_(3.15.49 HBRT)
-[A][DNN][packed_model.cpp:247][Model](1970-01-02,05:19:32.890.945) [HorizonRT] The model builder version = 1.23.6
-[INFO] [0000105573.170551799] [dnn]: The model input 0 width is 640 and height is 640
-[INFO] [0000105573.170660257] [dnn]: The model input 1 width is 1 and height is 512
-[INFO] [0000105573.170822466] [dnn]:
+[HBRT] set log level as 0. version = 3.15.52.0
+[DNN] Runtime version = 1.23.9_(3.15.52 HBRT)
+[A][DNN][packed_model.cpp:247][Model](1970-01-01,20:25:40.512.332) [HorizonRT] The model builder version = 1.23.5
+[W][DNN]bpu_model_info.cpp:491][Version](1970-01-01,20:25:40.722.986) Model: yolo_world_epoch_40_no_pad_offline_vocab_static_norm_new. Inconsistency between the hbrt library version 3.15.52.0 and the model build version 3.15.47.0 detected, in order to ensure correct model results, it is recommended to use compilation tools and the BPU SDK from the same OpenExplorer package.
+[INFO] [0000073540.731020608] [dnn]: The model input 0 width is 3 and height is 640
+[INFO] [0000073540.731121941] [dnn]: The model input 1 width is 1 and height is 512
+[INFO] [0000073540.731290525] [dnn]:
 Model Info:
-name: yolo_world.
+name: yolo_world_epoch_40_no_pad_offline_vocab_static_norm_new.
 [input]
- - (0) Layout: NCHW, Shape: [1, 3, 640, 640], Type: HB_DNN_TENSOR_TYPE_F32.
- - (1) Layout: NCHW, Shape: [1, 32, 512, 1], Type: HB_DNN_TENSOR_TYPE_F32.
+ - (0) Layout: NHWC, Shape: [1, 640, 640, 3], Type: HB_DNN_TENSOR_TYPE_F32.
+ - (1) Layout: NHWC, Shape: [1, 4, 512, 1], Type: HB_DNN_TENSOR_TYPE_F32.
 [output]
- - (0) Layout: NCHW, Shape: [1, 8400, 32, 1], Type: HB_DNN_TENSOR_TYPE_F32.
+ - (0) Layout: NCHW, Shape: [1, 8400, 4, 1], Type: HB_DNN_TENSOR_TYPE_F32.
  - (1) Layout: NCHW, Shape: [1, 8400, 4, 1], Type: HB_DNN_TENSOR_TYPE_F32.
 
-[INFO] [0000105573.170896757] [dnn]: Task init.
-[INFO] [0000105573.173133966] [dnn]: Set task_num [4]
-[WARN] [0000105573.173188007] [hobot_yolo_world]: Get model name: yolo_world from load model.
-[INFO] [0000105573.173228924] [hobot_yolo_world]: The model input width is 640 and height is 640
-[WARN] [0000105573.173286549] [hobot_yolo_world]: Create ai msg publisher with topic_name: /hobot_yolo_world
-[INFO] [0000105573.198971966] [hobot_yolo_world]: Dnn node feed with local image: config/dog.jpg
-[INFO] [0000105573.495347382] [hobot_yolo_world]: Output from frame_id: feedback, stamp: 0.0
-[INFO] [0000105573.499860466] [hobot_yolo_world]: out box size: 1
-[INFO] [0000105573.500038966] [hobot_yolo_world]: det rect: 0.495301 125.662 315.754 639.413, det type: dog, score:0.40681
+[INFO] [0000073540.731377233] [dnn]: Task init.
+[INFO] [0000073540.733611483] [dnn]: Set task_num [4]
+[WARN] [0000073540.733678275] [hobot_yolo_world]: Get model name: yolo_world_epoch_40_no_pad_offline_vocab_static_norm_new from load model.
+[INFO] [0000073540.733720691] [hobot_yolo_world]: The model input width is 640 and height is 640
+[WARN] [0000073540.733783483] [hobot_yolo_world]: Create ai msg publisher with topic_name: /hobot_yolo_world
+[INFO] [0000073540.758860233] [hobot_yolo_world]: Dnn node feed with local image: config/00131.jpg
+[INFO] [0000073540.954308816] [hobot_yolo_world]: Output from frame_id: feedback, stamp: 0.0
+[INFO] [0000073540.955560941] [hobot_yolo_world]: out box size: 1
+[INFO] [0000073540.955676525] [hobot_yolo_world]: det rect: 116.345 278.612 442.626 336.136, det type: liquid stain, score:0.855555
 ```
 
 ## 渲染结果
-![image](img/render.jpeg)
+![image](img/render_yolo_world.jpeg)
 
 说明：前处理对图片进行缩放和补全处理。

@@ -146,7 +146,7 @@ install(FILES
 )
 
 install(FILES
-  ${PROJECT_SOURCE_DIR}/config/dog.jpg
+  ${PROJECT_SOURCE_DIR}/config/00131.jpg
   DESTINATION lib/${PROJECT_NAME}/config/
 )
 

@@ -144,6 +144,11 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   texts_.clear();
   split(texts, ',', texts_);
 
+  auto model = GetModel();
+  hbDNNTensorProperties tensor_properties;
+  model->GetInputTensorProperties(tensor_properties, 1);
+  num_class_ = tensor_properties.alignedShape.dimensionSize[1];
+
   // 创建AI消息的发布者
   RCLCPP_WARN(rclcpp::get_logger("hobot_yolo_world"),
               "Create ai msg publisher with topic_name: %s",
@@ -305,7 +310,7 @@ int YoloWorldNode::GetTextIndex(
               "Vocabullary has no target texts.");
     return -1;
   }
-  int num = 32 - indexs.size();
+  int num = num_class_ - indexs.size();
   for (int i = 0; i < num; i++) {
     indexs.push_back(index);
     target_texts.push_back(target_text);
@@ -323,7 +328,8 @@ std::shared_ptr<DNNTensor> YoloWorldNode::GetEmbeddingsTensor(
   memset(mem->virAddr, 0, tensor_properties.alignedByteSize);
   auto *hb_mem_addr = reinterpret_cast<uint8_t *>(mem->virAddr);
 
-  for (int i = 0; i < 32; ++i) {
+  int num_class = tensor_properties.alignedShape.dimensionSize[1];
+  for (int i = 0; i < num_class; ++i) {
     auto *raw = hb_mem_addr + i * 2048;
     auto *src = reinterpret_cast<const uint8_t *>(embeddings[indexs[i]].data());
     memcpy(raw, src, 2048);
@@ -705,15 +711,6 @@ void YoloWorldNode::SharedMemImgProcess(
       std::string(reinterpret_cast<const char *>(img_msg->encoding.data()))) {
     cv::Mat bgr_mat;
     hobot::dnn_node::ImageProc::Nv12ToBGR(reinterpret_cast<const char *>(img_msg->data.data()), img_msg->height, img_msg->width, bgr_mat);
-    {
-    auto stamp_start = ConvertToRosTime(time_now);
-    struct timespec time_end = {0, 0};
-    clock_gettime(CLOCK_REALTIME, &time_end);
-    auto stamp_end = ConvertToRosTime(time_end);
-    RCLCPP_INFO(rclcpp::get_logger("hobot_yolo_world"),
-            "nv12 to bgr preforcess time: %d", 
-            CalTimeMsDuration(stamp_start, stamp_end));
-    }
     tensor_image = hobot::dnn_node::ImageProc::GetBGRTensorFromBGRImg(
           bgr_mat,
           model_input_height_,
