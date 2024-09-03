@@ -54,6 +54,8 @@ struct YoloWorldOutput : public DnnNodeOutput {
   std::shared_ptr<hobot::dnn_node::DNNTensor> tensor_image;
 
   ai_msgs::msg::Perf perf_preprocess;
+  int resized_w = 0; // 经过resize后图像的w
+  int resized_h = 0; // 经过resize后图像的w
 };
 
 class YoloWorldNode : public DnnNode {
@@ -141,7 +143,7 @@ class YoloWorldNode : public DnnNode {
   int num_class_ = 11;
 
   // 默认检测文本
-  std::string texts = "liquid stain,mild stain,solid stain,congee stain";
+  std::string texts = "trash bin,red bottle";
   std::vector<std::string> texts_ = {};
   // 在线程中执行推理，避免阻塞订阅IO通道，导致AI msg消息丢失
   // std::mutex mtx_texts_;

@@ -432,7 +432,7 @@ int YoloWorldNode::PostProcess(
 
   // 如果开启了渲染，本地渲染并存储图片
   if (dump_render_img_ && parser_output->tensor_image) {
-    ImageUtils::Render(parser_output->tensor_image, pub_data);
+    ImageUtils::Render(parser_output->tensor_image, pub_data, parser_output->resized_h, parser_output->resized_w);
   }
 
   if (parser_output->ratio != 1.0) {
@@ -535,6 +535,12 @@ int YoloWorldNode::FeedFromLocal() {
     return -1;
   }
 
+  cv::Mat bgr_mat = cv::imread(image_file_, cv::IMREAD_COLOR);
+  int original_img_width = bgr_mat.cols;
+  int original_img_height = bgr_mat.rows;
+  dnn_output->resized_w = static_cast<int>(static_cast<float>(original_img_width) / dnn_output->ratio);
+  dnn_output->resized_h = static_cast<int>(static_cast<float>(original_img_height) / dnn_output->ratio);
+
   // 2. 使用embeddings数据创建DNNTensor
   model->GetInputTensorProperties(tensor_properties, 1);
   std::shared_ptr<DNNTensor> tensor_embeddings = nullptr;
@@ -613,6 +619,8 @@ void YoloWorldNode::RosImgProcess(
       dnn_output->ratio,
       hobot::dnn_node::ImageType::BGR
     );
+    dnn_output->resized_h = static_cast<int>(static_cast<float>(cv_img->image.rows) / dnn_output->ratio);
+    dnn_output->resized_w = static_cast<int>(static_cast<float>(cv_img->image.cols) / dnn_output->ratio);
   } else if ("bgr8" == img_msg->encoding) {
     auto cv_img =
         cv_bridge::cvtColorForDisplay(cv_bridge::toCvShare(img_msg), "bgr8");
@@ -623,6 +631,8 @@ void YoloWorldNode::RosImgProcess(
       tensor_properties,
       dnn_output->ratio,
       hobot::dnn_node::ImageType::RGB);
+    dnn_output->resized_h = static_cast<int>(static_cast<float>(cv_img->image.rows) / dnn_output->ratio);
+    dnn_output->resized_w = static_cast<int>(static_cast<float>(cv_img->image.cols) / dnn_output->ratio);
   } else if ("nv12" == img_msg->encoding) {  // nv12格式使用hobotcv resize
     cv::Mat bgr_mat;
     hobot::dnn_node::ImageProc::Nv12ToBGR(reinterpret_cast<const char *>(img_msg->data.data()), img_msg->height, img_msg->width, bgr_mat);
@@ -633,6 +643,8 @@ void YoloWorldNode::RosImgProcess(
       tensor_properties,
       dnn_output->ratio,
       hobot::dnn_node::ImageType::RGB);
+    dnn_output->resized_h = static_cast<int>(static_cast<float>(bgr_mat.rows) / dnn_output->ratio);
+    dnn_output->resized_w = static_cast<int>(static_cast<float>(bgr_mat.cols) / dnn_output->ratio);
   }
 
   if (!tensor_image) {
@@ -718,6 +730,8 @@ void YoloWorldNode::SharedMemImgProcess(
           tensor_properties,
           dnn_output->ratio,
           hobot::dnn_node::ImageType::RGB);
+    dnn_output->resized_h = static_cast<int>(static_cast<float>(bgr_mat.rows) / dnn_output->ratio);
+    dnn_output->resized_w = static_cast<int>(static_cast<float>(bgr_mat.cols) / dnn_output->ratio);
   } else {
     RCLCPP_ERROR(rclcpp::get_logger("hobot_yolo_world"),
                  "Unsupported img encoding: %s, only nv12 img encoding is "
@@ -757,6 +771,7 @@ void YoloWorldNode::SharedMemImgProcess(
   dnn_output->msg_header->set__frame_id(std::to_string(img_msg->index));
   dnn_output->msg_header->set__stamp(img_msg->time_stamp);
   dnn_output->class_names = std::move(class_names);
+  
   
   clock_gettime(CLOCK_REALTIME, &time_now);
   dnn_output->perf_preprocess.stamp_end.sec = time_now.tv_sec;
