@@ -146,7 +146,7 @@ install(FILES
 )
 
 install(FILES
-  ${PROJECT_SOURCE_DIR}/config/test.jpg
+  ${PROJECT_SOURCE_DIR}/config/yolo_world_test.jpg
   DESTINATION lib/${PROJECT_NAME}/config/
 )
 

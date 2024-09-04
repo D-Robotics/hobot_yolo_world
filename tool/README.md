@@ -34,7 +34,7 @@ The entire project directory structure is as follows
 
 ```shell
 # Download the model
-wget http://sunrise.horizon.cc/models/yoloworld_encode_text/huggingclip_text_encode.tar.gz
+wget http://archive.d-robotics.cc/models/yoloworld_encode_text/huggingclip_text_encode.tar.gz
 sudo tar -xf huggingclip_text_encode.tar.gz -C tool
 
 # Run the script
