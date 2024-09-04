@@ -1,5 +1,8 @@
 # Changelog for package hobot_yolo_world
 
+tros_0.4.0 (2024-09-04)
+1. 更新了yolo-world模型与词汇表，增强了开放词汇目标检测的能力
+
 tros_0.3.0 (2024-08-09)
 ------------------
 1. 更新yolo-world模型与词汇表, 增强水渍检测的能力。

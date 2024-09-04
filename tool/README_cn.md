@@ -34,7 +34,7 @@
 
 ```shell
 # 下载模型并解压
-wget http://sunrise.horizon.cc/models/yoloworld_encode_text/huggingclip_text_encode.tar.gz
+wget http://archive.d-robotics.cc/models/yoloworld_encode_text/huggingclip_text_encode.tar.gz
 sudo tar -xf huggingclip_text_encode.tar.gz -C tool
 
 # 运行脚本

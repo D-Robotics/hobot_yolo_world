@@ -48,7 +48,9 @@ class ImageUtils {
 
   static int Render(
       const std::shared_ptr<hobot::dnn_node::DNNTensor> &tensor,
-      const ai_msgs::msg::PerceptionTargets::UniquePtr &perception);
+      const ai_msgs::msg::PerceptionTargets::UniquePtr &perception,
+      const int img_h,
+      const int img_w);
 };
 
 #endif  // IMAGE_UTILS_H
