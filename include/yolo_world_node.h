@@ -143,7 +143,7 @@ class YoloWorldNode : public DnnNode {
   int num_class_ = 11;
 
   // 默认检测文本
-  std::string texts = "trash bin,red bottle";
+  std::string texts = "red bottle,trash bin";
   std::vector<std::string> texts_ = {};
   // 在线程中执行推理，避免阻塞订阅IO通道，导致AI msg消息丢失
   // std::mutex mtx_texts_;
@@ -152,7 +152,7 @@ class YoloWorldNode : public DnnNode {
   std::condition_variable cv_text_;
 
   // 用于回灌的本地图片信息
-  std::string image_file_ = "config/00131.jpg";
+  std::string image_file_ = "config/yolo_world_test.jpg";
 
   // 发布AI消息的topic和发布者
   std::string ai_msg_pub_topic_name_ = "/hobot_yolo_world";
