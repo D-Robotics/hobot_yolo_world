@@ -32,6 +32,8 @@
 #include "dnn_node/dnn_node_data.h"
 #include "dnn_node/util/output_parser/perception_common.h"
 
+#include "include/post_process/yolo_world_output_parser.h"
+
 #ifndef YOLO_WORLD_NODE_H_
 #define YOLO_WORLD_NODE_H_
 
@@ -109,6 +111,8 @@ class YoloWorldNode : public DnnNode {
       ros_string_subscription_ = nullptr;
   std::string ros_string_sub_topic_name_ = "/target_words";
   void RosStringProcess(const std_msgs::msg::String::ConstSharedPtr msg);
+
+  std::shared_ptr<YoloOutputParser> parser = nullptr;
 
   // 用于解析的配置文件，以及解析后的数据
   std::string vocabulary_file_ = "config/offline_vocabulary_embeddings.json";
