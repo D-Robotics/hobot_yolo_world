@@ -77,7 +77,7 @@ def generate_launch_description():
         # 本地图片发布
         feedback_picture_arg = DeclareLaunchArgument(
             'publish_image_source',
-            default_value='./config/test.jpg',
+            default_value='./config/yolo_world_test.jpg',
             description='feedback picture')
 
         fb_node = IncludeLaunchDescription(
