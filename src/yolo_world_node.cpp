@@ -26,7 +26,6 @@
 
 #include "dnn_node/dnn_node.h"
 #include "include/image_utils.h"
-#include "include/post_process/yolo_world_output_parser.h"
 
 #include "include/yolo_world_node.h"
 
@@ -148,6 +147,11 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   hbDNNTensorProperties tensor_properties;
   model->GetInputTensorProperties(tensor_properties, 1);
   num_class_ = tensor_properties.alignedShape.dimensionSize[1];
+
+  parser = std::make_shared<YoloOutputParser>();
+  parser->SetScoreThreshold(score_threshold_);
+  parser->SetIouThreshold(iou_threshold_);
+  parser->SetTopkThreshold(nms_top_k_);
 
   // 创建AI消息的发布者
   RCLCPP_WARN(rclcpp::get_logger("hobot_yolo_world"),
@@ -378,11 +382,6 @@ int YoloWorldNode::PostProcess(
   }
 
   // 2. 模型后处理解析
-  auto parser = std::make_shared<YoloOutputParser>();
-  parser->SetScoreThreshold(score_threshold_);
-  parser->SetIouThreshold(iou_threshold_);
-  parser->SetTopkThreshold(nms_top_k_);
-
   auto det_result = std::make_shared<DnnParserResult>();
   parser->Parse(det_result, parser_output->output_tensors, parser_output->class_names);
 
@@ -682,7 +681,8 @@ void YoloWorldNode::RosImgProcess(
   }
 
   // 4. 开始预测
-  if (Run(inputs, dnn_output, true) != 0) {
+  int ret = Run(inputs, dnn_output, false);
+  if (ret != 0 && ret != HB_DNN_TASK_NUM_EXCEED_LIMIT) {
     RCLCPP_INFO(rclcpp::get_logger("hobot_yolo_world"), "Run predict failed!");
     return;
   }
@@ -782,7 +782,8 @@ void YoloWorldNode::SharedMemImgProcess(
   }
 
   // 4. 开始预测
-  if (Run(inputs, dnn_output, true) != 0) {
+  int ret = Run(inputs, dnn_output, false);
+  if (ret != 0 && ret != HB_DNN_TASK_NUM_EXCEED_LIMIT) {
     RCLCPP_ERROR(rclcpp::get_logger("hobot_yolo_world"), "Run predict failed!");
     return;
   }
