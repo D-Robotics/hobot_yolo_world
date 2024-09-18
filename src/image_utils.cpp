@@ -58,6 +58,7 @@ int ImageUtils::Render(
       }
     }
     cv::Mat bgr(height, width, CV_32FC3, buf);
+    bgr = bgr * 255;
     mat = bgr.clone();
     delete[] buf;
 

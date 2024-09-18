@@ -15,6 +15,7 @@
 #ifndef YOLO_WORLD_OUTPUT_PARSER_H_
 #define YOLO_WORLD_OUTPUT_PARSER_H_
 
+#include <cmath>
 #include <string>
 
 #include <rclcpp/rclcpp.hpp>
@@ -44,16 +45,26 @@ class YoloOutputParser {
       std::vector<std::string>& class_names,
       Perception &perception);
   
+  int32_t DecodeLayerNCHW(const int16_t* output_data,
+                        std::vector<std::string> &class_names,
+                        std::vector<Detection> &dets,
+                        const int num_class,
+                        const float* scale_data,
+                        const int vaild_h,
+                        const int vaild_w,
+                        const int aligned_w);
+
   int32_t SetScoreThreshold(float score_threshold) {score_threshold_ = score_threshold; return 0;}
   int32_t SetIouThreshold(float iou_threshold) {iou_threshold_ = iou_threshold; return 0;}
   int32_t SetTopkThreshold(int nms_top_k) {nms_top_k_ = nms_top_k; return 0;}
 
  private:
 
-  float score_threshold_ = 0.05;
-  float iou_threshold_ = 0.45;
-  int nms_top_k_ = 50;
+  float score_threshold_ = 0.22;
+  float iou_threshold_ = 0.5;
+  int nms_top_k_ = 100;
 
+  int input_shape = 640;
 };
 
 #endif  // YOLO_WORLD_OUTPUT_PARSER_H_

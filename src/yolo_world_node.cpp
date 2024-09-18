@@ -26,6 +26,7 @@
 
 #include "dnn_node/dnn_node.h"
 #include "include/image_utils.h"
+#include "include/post_process/yolo_world_output_parser.h"
 
 #include "include/yolo_world_node.h"
 
@@ -60,6 +61,8 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
                                const NodeOptions &options)
     : DnnNode(node_name, options) {
   // 更新配置
+  this->declare_parameter<std::string>("model_file_name", model_file_name_);
+  this->declare_parameter<std::string>("vocabulary_file_name", vocabulary_file_name_);
   this->declare_parameter<int>("feed_type", feed_type_);
   this->declare_parameter<std::string>("image", image_file_);
   this->declare_parameter<int>("dump_render_img", dump_render_img_);
@@ -67,15 +70,13 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   this->declare_parameter<float>("score_threshold", score_threshold_);
   this->declare_parameter<float>("iou_threshold", iou_threshold_);
   this->declare_parameter<int>("nms_top_k", nms_top_k_);
-  this->declare_parameter<std::string>("texts",
-                                       texts);
   this->declare_parameter<std::string>("ai_msg_pub_topic_name",
                                        ai_msg_pub_topic_name_);
   this->declare_parameter<std::string>("ros_img_sub_topic_name",
                                        ros_img_sub_topic_name_);
-  this->declare_parameter<std::string>("ros_string_sub_topic_name",
-                                       ros_string_sub_topic_name_);
 
+  this->get_parameter<std::string>("model_file_name", model_file_name_);
+  this->get_parameter<std::string>("vocabulary_file_name", vocabulary_file_name_);
   this->get_parameter<int>("feed_type", feed_type_);
   this->get_parameter<std::string>("image", image_file_);
   this->get_parameter<int>("dump_render_img", dump_render_img_);
@@ -83,14 +84,14 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   this->get_parameter<float>("score_threshold", score_threshold_);
   this->get_parameter<float>("iou_threshold", iou_threshold_);
   this->get_parameter<int>("nms_top_k", nms_top_k_);
-  this->get_parameter<std::string>("texts", texts);
   this->get_parameter<std::string>("ai_msg_pub_topic_name", ai_msg_pub_topic_name_);
   this->get_parameter<std::string>("ros_img_sub_topic_name", ros_img_sub_topic_name_);
-  this->get_parameter<std::string>("ros_string_sub_topic_name", ros_string_sub_topic_name_);
 
   {
     std::stringstream ss;
     ss << "Parameter:"
+       << "\n model_file_name: " << model_file_name_
+       << "\n vocabulary_file_name: " << vocabulary_file_name_
        << "\n feed_type(0:local, 1:sub): " << feed_type_
        << "\n image: " << image_file_
        << "\n dump_render_img: " << dump_render_img_
@@ -98,18 +99,8 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
        << "\n score_threshold: " << score_threshold_
        << "\n iou_threshold: " << iou_threshold_
        << "\n nms_top_k: " << nms_top_k_
-       << "\n texts: " << texts
        << "\n ai_msg_pub_topic_name: " << ai_msg_pub_topic_name_
-       << "\n ros_img_sub_topic_name: " << ros_img_sub_topic_name_
-       << "\n ros_string_sub_topic_name: " << ros_string_sub_topic_name_;
-    RCLCPP_WARN(rclcpp::get_logger("hobot_yolo_world"), "%s", ss.str().c_str());
-  }
-  LoadVocabulary();
-  {
-    std::stringstream ss;
-    ss << "Parameter:"
-       << "\n model_file_name: " << model_file_name_
-       << "\n model_name: " << model_name_;
+       << "\n ros_img_sub_topic_name: " << ros_img_sub_topic_name_;
     RCLCPP_WARN(rclcpp::get_logger("hobot_yolo_world"), "%s", ss.str().c_str());
   }
 
@@ -140,18 +131,14 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
                 model_input_height_);
   }
 
-  texts_.clear();
-  split(texts, ',', texts_);
-
   auto model = GetModel();
   hbDNNTensorProperties tensor_properties;
-  model->GetInputTensorProperties(tensor_properties, 1);
-  num_class_ = tensor_properties.alignedShape.dimensionSize[1];
+  model->GetOutputTensorProperties(tensor_properties, 0);
+  num_class_ = tensor_properties.alignedShape.dimensionSize[1] - 5;
 
-  parser = std::make_shared<YoloOutputParser>();
-  parser->SetScoreThreshold(score_threshold_);
-  parser->SetIouThreshold(iou_threshold_);
-  parser->SetTopkThreshold(nms_top_k_);
+  if (LoadVocabulary() != 0) {
+    return;
+  }
 
   // 创建AI消息的发布者
   RCLCPP_WARN(rclcpp::get_logger("hobot_yolo_world"),
@@ -171,16 +158,6 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
     // 创建图片消息的订阅者
     RCLCPP_INFO(rclcpp::get_logger("hobot_yolo_world"),
                 "Dnn node feed with subscription");
-    
-    RCLCPP_WARN(rclcpp::get_logger("hobot_yolo_world"),
-      "Create string subscription with topic_name: %s",
-      ros_string_sub_topic_name_.c_str());
-    ros_string_subscription_ =
-          this->create_subscription<std_msgs::msg::String>(
-              ros_string_sub_topic_name_,
-              10,
-              std::bind(
-                  &YoloWorldNode::RosStringProcess, this, std::placeholders::_1));
     if (is_shared_mem_sub_) {
 #ifdef SHARED_MEM_ENABLED
       RCLCPP_WARN(rclcpp::get_logger("hobot_yolo_world"),
@@ -215,20 +192,16 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   }
 }
 
-YoloWorldNode::~YoloWorldNode() {
-  std::unique_lock<std::mutex> lg(mtx_text_);
-  cv_text_.notify_all();
-  lg.unlock();
-}
+YoloWorldNode::~YoloWorldNode() {}
 
 int YoloWorldNode::LoadVocabulary() {
   
   // Parsing config
-  std::ifstream ifs(vocabulary_file_.c_str());
+  std::ifstream ifs(vocabulary_file_name_.c_str());
   if (!ifs) {
     RCLCPP_ERROR(rclcpp::get_logger("hobot_yolo_world"),
-                "Read vacabulary file [%s] fail! File is not exit!",
-                vocabulary_file_.data());
+                "Read vocabulary file [%s] fail! File is not exit!",
+                vocabulary_file_name_.data());
     return -1;
   }
   rapidjson::IStreamWrapper isw(ifs);
@@ -237,35 +210,45 @@ int YoloWorldNode::LoadVocabulary() {
   if (document.HasParseError()) {
     RCLCPP_ERROR(rclcpp::get_logger("hobot_yolo_world"),
                 "Parsing vocabulary file %s failed! Please check file format.",
-                vocabulary_file_.data());
+                vocabulary_file_name_.data());
     return -1;
   }
 
-  // 遍历所有字段
-  for (rapidjson::Value::ConstMemberIterator itr = document.MemberBegin(); itr != document.MemberEnd(); ++itr) {
-      std::string name = itr->name.GetString();
-      indice_.push_back(name);
-      std::vector<float> value;
-      // 处理不同类型的值
-      if (itr->value.IsArray()) {
-        if (itr->value.Size() != 512) {
-          RCLCPP_ERROR(rclcpp::get_logger("hobot_yolo_world"),
-            "Load Vocabulary Failed! Index [%s] embedding size %d != 512.",
-            name.c_str(), itr->value.Size());
-          return -1;
-        }
+  // 检查是否为数组
+  if (!document.IsArray()) {
+    RCLCPP_ERROR(rclcpp::get_logger("hobot_yolo_world"),
+                "Vocabulary file format error! Expected an array.");
+    return -1;
+  }
 
-        for (rapidjson::SizeType i = 0; i < itr->value.Size(); ++i) {
-            value.push_back(itr->value[i].GetFloat());
+  // 遍历数组并提取字符串
+  
+  int count = 0;
+  for (const auto& item : document.GetArray()) {
+  
+    if (item.IsArray()) {
+      for (const auto& sub_item : item.GetArray()) {
+        if (sub_item.IsString()) {
+          class_names_.emplace_back(sub_item.GetString());
+          break;
         }
-
-      } else {
-        RCLCPP_ERROR(rclcpp::get_logger("hobot_yolo_world"),
-            "Load Vocabulary Failed! Index [%s] not embedding",
-            name.c_str());
-        return -1;
       }
-      embeddings_.push_back(value);
+    }
+    if (item.IsString()) {
+      class_names_.emplace_back(item.GetString());
+    }
+    count++;
+  }
+
+  if (class_names_.size() != num_class_) {
+    RCLCPP_WARN(rclcpp::get_logger("hobot_yolo_world"),
+              "Vocabulary num[%d] != Num Class[%d] !", class_names_.size(), num_class_);
+    int num = class_names_.size();
+    for (int i = 0; i < num_class_ - num; i++) {
+      std::string name = "None"; 
+      class_names_.emplace_back(name);
+    }
+    return 0;
   }
   return 0;
 }
@@ -286,39 +269,6 @@ int YoloWorldNode::SetNodePara() {
               model_file_name_.data(),
               dnn_node_para_ptr_->task_num);
 
-  return 0;
-}
-
-int YoloWorldNode::GetTextIndex(
-      std::vector<std::string>& texts,
-      std::vector<int>& indexs,
-      std::vector<std::string>& target_texts) {
-  indexs.clear();
-  target_texts.clear();
-  int index = -1;
-  std::string target_text = "";
-  for (auto text: texts) {
-    for (int i = 0; i < indice_.size(); i++) {
-      if (text == indice_[i]) {
-        index = i;
-        target_text = text;
-        indexs.push_back(index);
-        target_texts.push_back(target_text);
-        break;
-      }
-    }
-  }
-
-  if (indexs.size() == 0) {
-    RCLCPP_ERROR(rclcpp::get_logger("hobot_yolo_world"),
-              "Vocabullary has no target texts.");
-    return -1;
-  }
-  int num = num_class_ - indexs.size();
-  for (int i = 0; i < num; i++) {
-    indexs.push_back(index);
-    target_texts.push_back(target_text);
-  }
   return 0;
 }
 
@@ -382,8 +332,13 @@ int YoloWorldNode::PostProcess(
   }
 
   // 2. 模型后处理解析
+  auto parser = std::make_shared<YoloOutputParser>();
+  parser->SetScoreThreshold(score_threshold_);
+  parser->SetIouThreshold(iou_threshold_);
+  parser->SetTopkThreshold(nms_top_k_);
+
   auto det_result = std::make_shared<DnnParserResult>();
-  parser->Parse(det_result, parser_output->output_tensors, parser_output->class_names);
+  parser->Parse(det_result, parser_output->output_tensors, class_names_);
 
   // 3. 创建用于发布的AI消息
   if (!msg_publisher_) {
@@ -525,7 +480,7 @@ int YoloWorldNode::FeedFromLocal() {
   std::shared_ptr<DNNTensor> tensor_image = nullptr;
   tensor_image = hobot::dnn_node::ImageProc::GetBGRTensorFromBGR(image_file_,
       model_input_height_, model_input_width_, tensor_properties, dnn_output->ratio,
-      hobot::dnn_node::ImageType::RGB, true, false, false);
+      hobot::dnn_node::ImageType::RGB, true, false, true);
 
   if (!tensor_image) {
     RCLCPP_ERROR(rclcpp::get_logger("ClipImageNode"),
@@ -540,23 +495,11 @@ int YoloWorldNode::FeedFromLocal() {
   dnn_output->resized_w = static_cast<int>(static_cast<float>(original_img_width) / dnn_output->ratio);
   dnn_output->resized_h = static_cast<int>(static_cast<float>(original_img_height) / dnn_output->ratio);
 
-  // 2. 使用embeddings数据创建DNNTensor
-  model->GetInputTensorProperties(tensor_properties, 1);
-  std::shared_ptr<DNNTensor> tensor_embeddings = nullptr;
-  std::vector<int> indexs;
-  std::vector<std::string> class_names;
-  if (GetTextIndex(texts_, indexs, class_names) != 0) {
-    return -1;
-  } 
-  tensor_embeddings = GetEmbeddingsTensor(indexs, embeddings_, tensor_properties);
-
-  // 3. 存储上面两个DNNTensor
+  // 2. 存储上面两个DNNTensor
   // inputs将会作为模型的输入通过InferTask接口传入
   std::vector<std::shared_ptr<DNNTensor>> inputs;
   inputs.push_back(tensor_image);
-  inputs.push_back(tensor_embeddings);
   clock_gettime(CLOCK_REALTIME, &time_now);
-  dnn_output->class_names = std::move(class_names);
   dnn_output->perf_preprocess.stamp_end.sec = time_now.tv_sec;
   dnn_output->perf_preprocess.stamp_end.nanosec = time_now.tv_nsec;
   dnn_output->perf_preprocess.set__type(model_name_ + "_preprocess");
@@ -566,7 +509,7 @@ int YoloWorldNode::FeedFromLocal() {
     dnn_output->tensor_image = tensor_image;
   }
 
-  // 4. 开始预测
+  // 3. 开始预测
   if (Run(inputs, dnn_output, true) != 0) {
     RCLCPP_ERROR(rclcpp::get_logger("hobot_yolo_world"), "Run predict failed!");
     return -1;
@@ -651,26 +594,12 @@ void YoloWorldNode::RosImgProcess(
     return;
   }
 
-  // 2. 使用embeddings数据创建DNNTensor
-  model->GetInputTensorProperties(tensor_properties, 1);
-  std::shared_ptr<DNNTensor> tensor_embeddings = nullptr;
-  std::vector<int> indexs;
-  std::vector<std::string> class_names;
-
-  std::unique_lock<std::mutex> lg(mtx_text_);
-  cv_text_.wait(lg, [this]() { return !texts_.empty() || !rclcpp::ok(); });
-  if (GetTextIndex(texts_, indexs, class_names) != 0) {
-    return;
-  } 
-  tensor_embeddings = GetEmbeddingsTensor(indexs, embeddings_, tensor_properties);
-
-  // 3. 存储上面两个DNNTensor
+  // 2. 存储DNNTensor
   // inputs将会作为模型的输入通过InferTask接口传入
-  auto inputs = std::vector<std::shared_ptr<DNNTensor>>{tensor_image, tensor_embeddings};
+  auto inputs = std::vector<std::shared_ptr<DNNTensor>>{tensor_image};
   dnn_output->msg_header = std::make_shared<std_msgs::msg::Header>();
   dnn_output->msg_header->set__frame_id(img_msg->header.frame_id);
   dnn_output->msg_header->set__stamp(img_msg->header.stamp);
-  dnn_output->class_names = std::move(class_names);
   
   clock_gettime(CLOCK_REALTIME, &time_now);
   dnn_output->perf_preprocess.stamp_end.sec = time_now.tv_sec;
@@ -680,9 +609,9 @@ void YoloWorldNode::RosImgProcess(
     dnn_output->tensor_image = tensor_image;
   }
 
-  // 4. 开始预测
+  // 3. 开始预测
   int ret = Run(inputs, dnn_output, false);
-  if (ret != 0 && ret != HB_DNN_TASK_NUM_EXCEED_LIMIT) {
+  if (ret != 0 && ret != HB_DNN_TASK_NUM_EXCEED_LIMIT ) {
     RCLCPP_INFO(rclcpp::get_logger("hobot_yolo_world"), "Run predict failed!");
     return;
   }
@@ -729,7 +658,10 @@ void YoloWorldNode::SharedMemImgProcess(
           model_input_width_,
           tensor_properties,
           dnn_output->ratio,
-          hobot::dnn_node::ImageType::RGB);
+          hobot::dnn_node::ImageType::RGB,
+          true,
+          false,
+          true);
     dnn_output->resized_h = static_cast<int>(static_cast<float>(bgr_mat.rows) / dnn_output->ratio);
     dnn_output->resized_w = static_cast<int>(static_cast<float>(bgr_mat.cols) / dnn_output->ratio);
   } else {
@@ -755,23 +687,11 @@ void YoloWorldNode::SharedMemImgProcess(
             CalTimeMsDuration(stamp_start, stamp_end));
   }
 
-  // 2. 使用embeddings数据创建DNNTensor
-  model->GetInputTensorProperties(tensor_properties, 1);
-  std::shared_ptr<DNNTensor> tensor_embeddings = nullptr;
-  std::vector<int> indexs;
-  std::vector<std::string> class_names;
-  if (GetTextIndex(texts_, indexs, class_names) != 0) {
-    return;
-  } 
-  tensor_embeddings = GetEmbeddingsTensor(indexs, embeddings_, tensor_properties);
-
-  // 3. 初始化输出
-  auto inputs = std::vector<std::shared_ptr<DNNTensor>>{tensor_image, tensor_embeddings};
+  // 2. 初始化输出
+  auto inputs = std::vector<std::shared_ptr<DNNTensor>>{tensor_image};
   dnn_output->msg_header = std::make_shared<std_msgs::msg::Header>();
   dnn_output->msg_header->set__frame_id(std::to_string(img_msg->index));
   dnn_output->msg_header->set__stamp(img_msg->time_stamp);
-  dnn_output->class_names = std::move(class_names);
-  
   
   clock_gettime(CLOCK_REALTIME, &time_now);
   dnn_output->perf_preprocess.stamp_end.sec = time_now.tv_sec;
@@ -781,33 +701,11 @@ void YoloWorldNode::SharedMemImgProcess(
     dnn_output->tensor_image = tensor_image;
   }
 
-  // 4. 开始预测
+  // 3. 开始预测
   int ret = Run(inputs, dnn_output, false);
-  if (ret != 0 && ret != HB_DNN_TASK_NUM_EXCEED_LIMIT) {
+  if (ret != 0 && ret != HB_DNN_TASK_NUM_EXCEED_LIMIT ) {
     RCLCPP_ERROR(rclcpp::get_logger("hobot_yolo_world"), "Run predict failed!");
     return;
   }
 }
 #endif
-
-void YoloWorldNode::RosStringProcess(
-    const std_msgs::msg::String::ConstSharedPtr msg) {
-  if (!msg) {
-    RCLCPP_DEBUG(rclcpp::get_logger("hobot_yolo_world"), "Get string failed");
-    return;
-  }
-
-  if (!rclcpp::ok()) {
-    return;
-  }
-
-  std::stringstream ss;
-  ss << "Recved string data: " << msg->data;
-  RCLCPP_INFO(rclcpp::get_logger("hobot_yolo_world"), "%s", ss.str().c_str());
-
-  std::unique_lock<std::mutex> lg(mtx_text_);
-  texts_.clear();
-  split(msg->data, ',', texts_);
-  cv_text_.notify_one();
-  lg.unlock();
-}

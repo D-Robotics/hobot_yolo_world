@@ -32,8 +32,6 @@
 #include "dnn_node/dnn_node_data.h"
 #include "dnn_node/util/output_parser/perception_common.h"
 
-#include "include/post_process/yolo_world_output_parser.h"
-
 #ifndef YOLO_WORLD_NODE_H_
 #define YOLO_WORLD_NODE_H_
 
@@ -49,8 +47,6 @@ using ai_msgs::msg::PerceptionTargets;
 struct YoloWorldOutput : public DnnNodeOutput {
   // resize参数，用于算法检测结果的映射
   float ratio = 1.0;  //缩放比例系数，无需缩放为1
-
-  std::vector<std::string> class_names; 
 
   // 图片数据用于渲染
   std::shared_ptr<hobot::dnn_node::DNNTensor> tensor_image;
@@ -78,11 +74,6 @@ class YoloWorldNode : public DnnNode {
   // 本地回灌进行算法推理
   int FeedFromLocal();
 
-  int GetTextIndex(
-        std::vector<std::string>& texts,
-        std::vector<int>& indexs,
-        std::vector<std::string>& target_texts);
-
   static std::shared_ptr<DNNTensor> GetEmbeddingsTensor(
       std::vector<int>& indexs,
       const std::vector<std::vector<float>>& embeddings,
@@ -106,21 +97,15 @@ class YoloWorldNode : public DnnNode {
   std::string ros_img_sub_topic_name_ = "/image";
   void RosImgProcess(const sensor_msgs::msg::Image::ConstSharedPtr msg);
 
-  // string msg 控制话题信息
-  rclcpp::Subscription<std_msgs::msg::String>::ConstSharedPtr
-      ros_string_subscription_ = nullptr;
-  std::string ros_string_sub_topic_name_ = "/target_words";
-  void RosStringProcess(const std_msgs::msg::String::ConstSharedPtr msg);
-
-  std::shared_ptr<YoloOutputParser> parser = nullptr;
-
   // 用于解析的配置文件，以及解析后的数据
-  std::string vocabulary_file_ = "config/offline_vocabulary_embeddings.json";
-  std::string model_file_name_ = "config/yolo_world.bin";
+  std::string vocabulary_file_name_ = "config/offline_vocabulary_embeddings.json";
+  std::string model_file_name_ = "config/yolo_world_v2_s.bin";
   std::string model_name_ = "";
 
-  float score_threshold_ = 0.05;
-  float iou_threshold_ = 0.45;
+  std::vector<std::string> class_names_;
+
+  float score_threshold_ = 0.22;
+  float iou_threshold_ = 0.5;
   int nms_top_k_ = 50;
 
   // 存储字段名称和对应的值
@@ -144,16 +129,7 @@ class YoloWorldNode : public DnnNode {
   int task_num_ = 4;
 
   // 类别数量
-  int num_class_ = 11;
-
-  // 默认检测文本
-  std::string texts = "red bottle,trash bin";
-  std::vector<std::string> texts_ = {};
-  // 在线程中执行推理，避免阻塞订阅IO通道，导致AI msg消息丢失
-  // std::mutex mtx_texts_;
-  // std::condition_variable cv_texts_;
-  std::mutex mtx_text_;
-  std::condition_variable cv_text_;
+  int num_class_ = 1202;
 
   // 用于回灌的本地图片信息
   std::string image_file_ = "config/yolo_world_test.jpg";
