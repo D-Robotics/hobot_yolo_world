@@ -139,11 +139,6 @@ install(DIRECTORY
   DESTINATION lib/${PROJECT_NAME}/config/
 )
 
-install(DIRECTORY
-  ${PROJECT_SOURCE_DIR}/tool/
-  DESTINATION lib/${PROJECT_NAME}/tool/
-)
-
 install(FILES
   ${PROJECT_SOURCE_DIR}/config/offline_vocabulary_embeddings.json
   DESTINATION lib/${PROJECT_NAME}/config/
