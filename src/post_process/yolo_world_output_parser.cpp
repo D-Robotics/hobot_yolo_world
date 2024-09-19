@@ -56,7 +56,7 @@ int32_t YoloOutputParser::PostProcess(
                     tensor->properties.alignedShape.dimensionSize[3]);
   }
 
-  nms(dets, iou_threshold_, nms_top_k_, perception.det, false);
+  nms(dets, iou_threshold_, nms_top_k_, perception.det, true);
   return 0;
 }
 
