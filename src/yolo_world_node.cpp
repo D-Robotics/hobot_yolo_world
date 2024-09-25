@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "hobot_cv/hobotcv_imgproc.h"
 #include "rapidjson/document.h"
 #include "rapidjson/istreamwrapper.h"
 #include "rapidjson/writer.h"
@@ -46,15 +47,49 @@ int CalTimeMsDuration(const builtin_interfaces::msg::Time &start,
          start.nanosec / 1000 / 1000;
 }
 
-int split(const std::string& str, 
-          char delimiter,
-          std::vector<std::string>& tokens) {
-    std::string token;
-    std::stringstream ss(str);
-    while (std::getline(ss, token, delimiter)) {
-        tokens.push_back(token);
-    }    
-    return 0;
+// 使用hobotcv resize nv12格式图片，固定图片宽高比
+int ResizeNV12Img(const char *in_img_data,
+                  const int &in_img_height,
+                  const int &in_img_width,
+                  int &resized_img_height,
+                  int &resized_img_width,
+                  const int &scaled_img_height,
+                  const int &scaled_img_width,
+                  cv::Mat &out_img,
+                  float &ratio) {
+  cv::Mat src(
+      in_img_height * 3 / 2, in_img_width, CV_8UC1, (void *)(in_img_data));
+  float ratio_w =
+      static_cast<float>(in_img_width) / static_cast<float>(scaled_img_width);
+  float ratio_h =
+      static_cast<float>(in_img_height) / static_cast<float>(scaled_img_height);
+  float dst_ratio = std::max(ratio_w, ratio_h);
+  int resized_width, resized_height;
+  if (dst_ratio == ratio_w) {
+    resized_width = scaled_img_width;
+    resized_height = static_cast<float>(in_img_height) / dst_ratio;
+  } else if (dst_ratio == ratio_h) {
+    resized_width = static_cast<float>(in_img_width) / dst_ratio;
+    resized_height = scaled_img_height;
+  }
+  // hobot_cv要求输出宽度为16的倍数
+  int remain = resized_width % 16;
+  if (remain != 0) {
+    //向下取16倍数，重新计算缩放系数
+    resized_width -= remain;
+    dst_ratio = static_cast<float>(in_img_width) / resized_width;
+    resized_height = static_cast<float>(in_img_height) / dst_ratio;
+  }
+  //高度向下取偶数
+  resized_height =
+      resized_height % 2 == 0 ? resized_height : resized_height - 1;
+  ratio = dst_ratio;
+
+  resized_img_height = resized_height;
+  resized_img_width = resized_width;
+
+  return hobot_cv::hobotcv_resize(
+      src, in_img_height, in_img_width, out_img, resized_height, resized_width);
 }
 
 YoloWorldNode::YoloWorldNode(const std::string &node_name,
@@ -134,7 +169,10 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   auto model = GetModel();
   hbDNNTensorProperties tensor_properties;
   model->GetOutputTensorProperties(tensor_properties, 0);
-  num_class_ = tensor_properties.alignedShape.dimensionSize[1] - 5;
+  num_class_ = tensor_properties.alignedShape.dimensionSize[3];
+
+  model->GetInputTensorProperties(tensor_properties, 0);
+  is_nv12_ = tensor_properties.tensorType == HB_DNN_IMG_TYPE_NV12 ? true : false;
 
   if (LoadVocabulary() != 0) {
     return;
@@ -388,6 +426,9 @@ int YoloWorldNode::PostProcess(
   if (dump_render_img_ && parser_output->tensor_image) {
     ImageUtils::Render(parser_output->tensor_image, pub_data, parser_output->resized_h, parser_output->resized_w);
   }
+  if (dump_render_img_ && parser_output->pyramid) {
+    ImageUtils::Render(parser_output->pyramid, pub_data, parser_output->resized_h, parser_output->resized_w);
+  }
 
   if (parser_output->ratio != 1.0) {
     // 前处理有对图片进行resize，需要将坐标映射到对应的订阅图片分辨率
@@ -419,13 +460,6 @@ int YoloWorldNode::PostProcess(
         ConvertToRosTime(node_output->rt_stat->infer_timespec_start);
     perf.stamp_end = ConvertToRosTime(node_output->rt_stat->infer_timespec_end);
     perf.set__time_ms_duration(node_output->rt_stat->infer_time_ms);
-    pub_data->perfs.push_back(perf);
-
-    perf.set__type(model_name_ + "_predict_parse");
-    perf.stamp_start =
-        ConvertToRosTime(node_output->rt_stat->parse_timespec_start);
-    perf.stamp_end = ConvertToRosTime(node_output->rt_stat->parse_timespec_end);
-    perf.set__time_ms_duration(node_output->rt_stat->parse_time_ms);
     pub_data->perfs.push_back(perf);
 
     // 后处理统计
@@ -473,6 +507,48 @@ int YoloWorldNode::FeedFromLocal() {
   dnn_output->perf_preprocess.stamp_start.sec = time_now.tv_sec;
   dnn_output->perf_preprocess.stamp_start.nanosec = time_now.tv_nsec;
 
+  if (is_nv12_) {
+
+    // 1. 将图片处理成模型输入数据类型DNNInput
+    // 使用图片生成pym，NV12PyramidInput为DNNInput的子类
+    std::shared_ptr<hobot::dnn_node::NV12PyramidInput> pyramid = nullptr;
+    // bgr img，支持将图片resize到模型输入size
+    pyramid = hobot::dnn_node::ImageProc::GetNV12PyramidFromBGR(
+        image_file_,
+        dnn_output->img_h,
+        dnn_output->img_w,
+        dnn_output->resized_h, 
+        dnn_output->resized_w, 
+        model_input_height_, 
+        model_input_width_);
+    if (!pyramid) {
+      RCLCPP_ERROR(this->get_logger(),
+                  "Get Nv12 pym fail with image: %s",
+                  image_file_.c_str());
+      return -1;
+    }
+
+    // 2. 存储上面两个DNNTensor
+    // inputs将会作为模型的输入通过InferTask接口传入
+    auto inputs = std::vector<std::shared_ptr<DNNInput>>{pyramid};
+    clock_gettime(CLOCK_REALTIME, &time_now);
+    dnn_output->perf_preprocess.stamp_end.sec = time_now.tv_sec;
+    dnn_output->perf_preprocess.stamp_end.nanosec = time_now.tv_nsec;
+    dnn_output->perf_preprocess.set__type(model_name_ + "_preprocess");
+    dnn_output->msg_header = std::make_shared<std_msgs::msg::Header>();
+    dnn_output->msg_header->set__frame_id("feedback");
+    if (dump_render_img_) {
+      dnn_output->pyramid = pyramid;
+    }
+
+    // 3. 开始预测
+    if (Run(inputs, dnn_output, nullptr) != 0) {
+      RCLCPP_ERROR(rclcpp::get_logger("hobot_yolo_world"), "Run predict failed!");
+      return -1;
+    }
+    return 0;
+  } 
+    
   // 1. 获取图片数据DNNTensor
   auto model = GetModel();
   hbDNNTensorProperties tensor_properties;
@@ -484,8 +560,8 @@ int YoloWorldNode::FeedFromLocal() {
 
   if (!tensor_image) {
     RCLCPP_ERROR(rclcpp::get_logger("ClipImageNode"),
-                 "Get tensor fail with image: %s",
-                 image_file_.c_str());
+                "Get tensor fail with image: %s",
+                image_file_.c_str());
     return -1;
   }
 
@@ -642,6 +718,88 @@ void YoloWorldNode::SharedMemImgProcess(
   clock_gettime(CLOCK_REALTIME, &time_now);
   dnn_output->perf_preprocess.stamp_start.sec = time_now.tv_sec;
   dnn_output->perf_preprocess.stamp_start.nanosec = time_now.tv_nsec;
+
+  if (is_nv12_) {
+    // 1. 将图片处理成模型输入数据类型DNNInput
+    // 使用图片生成pym，NV12PyramidInput为DNNInput的子类
+    std::shared_ptr<hobot::dnn_node::NV12PyramidInput> pyramid = nullptr;
+    if ("nv12" ==
+        std::string(reinterpret_cast<const char *>(img_msg->encoding.data()))) {
+      if (img_msg->height != static_cast<uint32_t>(model_input_height_) ||
+          img_msg->width != static_cast<uint32_t>(model_input_width_)) {
+        // 需要做resize处理
+        cv::Mat out_img;
+        if (ResizeNV12Img(reinterpret_cast<const char *>(img_msg->data.data()),
+                          img_msg->height,
+                          img_msg->width,
+                          dnn_output->resized_h,
+                          dnn_output->resized_w,
+                          model_input_height_,
+                          model_input_width_,
+                          out_img,
+                          dnn_output->ratio) < 0) {
+          RCLCPP_ERROR(rclcpp::get_logger("dnn_node_example"),
+                      "Resize nv12 img fail!");
+          return;
+        }
+
+        uint32_t out_img_width = out_img.cols;
+        uint32_t out_img_height = out_img.rows * 2 / 3;
+        pyramid = hobot::dnn_node::ImageProc::GetNV12PyramidFromNV12Img(
+            reinterpret_cast<const char *>(out_img.data),
+            out_img_height,
+            out_img_width,
+            model_input_height_,
+            model_input_width_);
+      } else {
+        
+        int image_height = img_msg->height;
+        int image_width = img_msg->width;
+        dnn_output->resized_h = std::min(image_height, model_input_height_);
+        dnn_output->resized_w = std::min(image_width, model_input_width_);
+
+        //不需要进行resize
+        pyramid = hobot::dnn_node::ImageProc::GetNV12PyramidFromNV12Img(
+            reinterpret_cast<const char *>(img_msg->data.data()),
+            img_msg->height,
+            img_msg->width,
+            model_input_height_,
+            model_input_width_);
+      }
+    } else {
+      RCLCPP_ERROR(this->get_logger(),
+                  "Unsupported img encoding: %s, only nv12 img encoding is "
+                  "supported for shared mem.",
+                  img_msg->encoding.data());
+      return;
+    }
+
+    // 初始化输出
+    dnn_output->img_w = img_msg->width;
+    dnn_output->img_h = img_msg->height;
+
+    // 2. 初始化输出
+    auto inputs = std::vector<std::shared_ptr<DNNInput>>{pyramid};
+    dnn_output->msg_header = std::make_shared<std_msgs::msg::Header>();
+    dnn_output->msg_header->set__frame_id(std::to_string(img_msg->index));
+    dnn_output->msg_header->set__stamp(img_msg->time_stamp);
+  
+    clock_gettime(CLOCK_REALTIME, &time_now);
+    dnn_output->perf_preprocess.stamp_end.sec = time_now.tv_sec;
+    dnn_output->perf_preprocess.stamp_end.nanosec = time_now.tv_nsec;
+    dnn_output->perf_preprocess.set__type(model_name_ + "_preprocess");
+    if (dump_render_img_) {
+      dnn_output->pyramid = pyramid;
+    }
+
+    // 3. 开始预测
+    int ret = Run(inputs, dnn_output, nullptr, false);
+    if (ret != 0 && ret != HB_DNN_TASK_NUM_EXCEED_LIMIT) {
+      RCLCPP_ERROR(this->get_logger(), "Run predict failed!");
+      return;
+    }
+    return;
+  } 
 
   // 1. 将图片处理成模型输入数据类型DNNTensor
   auto model = GetModel();

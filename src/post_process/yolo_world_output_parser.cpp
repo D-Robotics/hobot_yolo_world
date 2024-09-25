@@ -23,11 +23,71 @@ int32_t YoloOutputParser::Parse(
     output = std::make_shared<DnnParserResult>();
   }
 
-  int ret = PostProcess(output_tensors, class_names, output->perception);
+  int ret = -1;
+  if (output_tensors.size() == 3) {
+    ret = PostProcess(output_tensors, class_names, output->perception);
+  } else if (output_tensors.size() == 2) {
+    ret = PostProcessWithoutDecode(output_tensors, class_names, output->perception);
+  } 
+  
   if (ret != 0) {
     return ret;
   }
 
+  return 0;
+}
+
+int32_t YoloOutputParser::PostProcessWithoutDecode(
+    std::vector<std::shared_ptr<DNNTensor>> &tensors,
+    std::vector<std::string>& class_names,
+    Perception &perception) {
+  hbSysFlushMem(&(tensors[0]->sysMem[0]), HB_SYS_MEM_CACHE_INVALIDATE);
+  hbSysFlushMem(&(tensors[1]->sysMem[0]), HB_SYS_MEM_CACHE_INVALIDATE);
+  auto *scores_data = reinterpret_cast<int16_t *>(tensors[0]->sysMem[0].virAddr);
+  auto *boxes_data = reinterpret_cast<int16_t *>(tensors[1]->sysMem[0].virAddr);
+
+  perception.type = Perception::DET;
+  std::vector<Detection> dets;
+  
+  int num_pred = 0;
+  int num_class = 0;
+  if (tensors[0]->properties.tensorLayout == HB_DNN_LAYOUT_NCHW) {
+    num_pred = tensors[0]->properties.alignedShape.dimensionSize[1];
+    num_class = tensors[0]->properties.alignedShape.dimensionSize[2];
+  } else if (tensors[0]->properties.tensorLayout == HB_DNN_LAYOUT_NHWC) {
+    num_pred = tensors[0]->properties.alignedShape.dimensionSize[3];
+    num_class = tensors[0]->properties.alignedShape.dimensionSize[1];
+  } else {
+    num_pred = tensors[0]->properties.alignedShape.dimensionSize[2];
+    num_class = tensors[0]->properties.alignedShape.dimensionSize[3];
+  }
+
+  for (int i = 0; i < num_pred; i++) {
+    int16_t *score_data = scores_data + i * num_class;
+    int16_t *box_data = boxes_data + i * 8;
+    float max_score = std::numeric_limits<float>::lowest(); // 初始最大值为最小可能值
+    int max_index = -1;
+    for (int k = 0; k < num_class; ++k) {
+      float score = static_cast<float>(score_data[k]) * tensors[0]->properties.scale.scaleData[0];
+      if (score > max_score) {
+          max_score = score;
+          max_index = k;
+      }
+    }
+    if (max_score > score_threshold_) {
+      float xmin = static_cast<float>(box_data[0]) * tensors[1]->properties.scale.scaleData[0];
+      float ymin = static_cast<float>(box_data[1]) * tensors[1]->properties.scale.scaleData[0];
+      float xmax = static_cast<float>(box_data[2]) * tensors[1]->properties.scale.scaleData[0];
+      float ymax = static_cast<float>(box_data[3]) * tensors[1]->properties.scale.scaleData[0];
+      Bbox bbox(xmin, ymin, xmax, ymax);
+      dets.push_back(
+          Detection(static_cast<int>(max_index),
+                    max_score,
+                    bbox,
+                    class_names[max_index].c_str()));
+    }
+  }
+  nms(dets, iou_threshold_, nms_top_k_, perception.det, false);
   return 0;
 }
 

@@ -40,6 +40,11 @@ class YoloOutputParser {
       std::vector<std::shared_ptr<DNNTensor>> &output_tensors,
       std::vector<std::string>& class_names);
  
+  int32_t PostProcessWithoutDecode(
+      std::vector<std::shared_ptr<DNNTensor>> &tensors,
+      std::vector<std::string>& class_names,
+      Perception &perception);
+
   int32_t PostProcess(
       std::vector<std::shared_ptr<DNNTensor>> &tensors,
       std::vector<std::string>& class_names,

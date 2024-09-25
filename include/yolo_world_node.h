@@ -40,6 +40,8 @@ using rclcpp::NodeOptions;
 using hobot::dnn_node::DnnNode;
 using hobot::dnn_node::DnnNodeOutput;
 using hobot::dnn_node::DNNTensor;
+using hobot::dnn_node::DNNInput;
+using hobot::dnn_node::NV12PyramidInput;
 using hobot::dnn_node::output_parser::DnnParserResult;
 using ai_msgs::msg::PerceptionTargets;
 
@@ -51,9 +53,15 @@ struct YoloWorldOutput : public DnnNodeOutput {
   // 图片数据用于渲染
   std::shared_ptr<hobot::dnn_node::DNNTensor> tensor_image;
 
+  // 图片数据用于渲染
+  std::shared_ptr<hobot::dnn_node::NV12PyramidInput> pyramid;
+
   ai_msgs::msg::Perf perf_preprocess;
   int resized_w = 0; // 经过resize后图像的w
   int resized_h = 0; // 经过resize后图像的w
+
+  int img_h = 0;
+  int img_w = 0;
 };
 
 class YoloWorldNode : public DnnNode {
@@ -99,7 +107,8 @@ class YoloWorldNode : public DnnNode {
 
   // 用于解析的配置文件，以及解析后的数据
   std::string vocabulary_file_name_ = "config/offline_vocabulary_embeddings.json";
-  std::string model_file_name_ = "config/yolo_world_v2_s.bin";
+  std::string model_file_name_ = "config/DOSOD_M_80_without-nms_int16_nv12.bin";
+  
   std::string model_name_ = "";
 
   std::vector<std::string> class_names_;
@@ -108,13 +117,15 @@ class YoloWorldNode : public DnnNode {
   float iou_threshold_ = 0.5;
   int nms_top_k_ = 50;
 
+  bool is_nv12_ = true;
+
   // 存储字段名称和对应的值
   std::vector<std::string> indice_;
   std::vector<std::vector<float>> embeddings_;
 
   // 加载模型后，查询出模型输入分辨率
-  int model_input_width_ = -1;
-  int model_input_height_ = -1;
+  int model_input_width_ = 640;
+  int model_input_height_ = 640;
 
   // 用于预测的图片来源，0：本地图片；1：订阅到的image msg
   int feed_type_ = 0;
@@ -126,10 +137,10 @@ class YoloWorldNode : public DnnNode {
   int is_shared_mem_sub_ = 0;
 
   // 算法推理的任务数
-  int task_num_ = 4;
+  int task_num_ = 10;
 
   // 类别数量
-  int num_class_ = 1202;
+  int num_class_ = 80;
 
   // 用于回灌的本地图片信息
   std::string image_file_ = "config/yolo_world_test.jpg";
