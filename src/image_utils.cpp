@@ -25,9 +25,7 @@
 
 int ImageUtils::Render(
     const std::shared_ptr<hobot::dnn_node::DNNTensor> &tensor,
-    const ai_msgs::msg::PerceptionTargets::UniquePtr &ai_msg,
-    const int img_h,
-    const int img_w) {
+    const ai_msgs::msg::PerceptionTargets::UniquePtr &ai_msg) {
   if (!tensor || !ai_msg) return -1;
 
   int src_elem_size = 1;
@@ -137,7 +135,6 @@ int ImageUtils::Render(
                 "Frame has no roi, skip the rendering");
     return 0;
   }
-  mat = mat(cv::Rect(0, 0, img_w, img_h));
   std::string saving_path = "render_" + ai_msg->header.frame_id + "_" +
                             std::to_string(ai_msg->header.stamp.sec) + "_" +
                             std::to_string(ai_msg->header.stamp.nanosec) +

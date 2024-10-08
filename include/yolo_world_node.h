@@ -32,8 +32,6 @@
 #include "dnn_node/dnn_node_data.h"
 #include "dnn_node/util/output_parser/perception_common.h"
 
-#include "include/post_process/yolo_world_output_parser.h"
-
 #ifndef YOLO_WORLD_NODE_H_
 #define YOLO_WORLD_NODE_H_
 
@@ -56,8 +54,6 @@ struct YoloWorldOutput : public DnnNodeOutput {
   std::shared_ptr<hobot::dnn_node::DNNTensor> tensor_image;
 
   ai_msgs::msg::Perf perf_preprocess;
-  int resized_w = 0; // 经过resize后图像的w
-  int resized_h = 0; // 经过resize后图像的w
 };
 
 class YoloWorldNode : public DnnNode {
@@ -74,6 +70,9 @@ class YoloWorldNode : public DnnNode {
  private:
   // 解析配置文件，包好模型文件路径、解析方法等信息
   int LoadVocabulary();
+
+  // 加载单应性矩阵配置文件
+  int LoadHomography();
 
   // 本地回灌进行算法推理
   int FeedFromLocal();
@@ -112,8 +111,6 @@ class YoloWorldNode : public DnnNode {
   std::string ros_string_sub_topic_name_ = "/target_words";
   void RosStringProcess(const std_msgs::msg::String::ConstSharedPtr msg);
 
-  std::shared_ptr<YoloOutputParser> parser = nullptr;
-
   // 用于解析的配置文件，以及解析后的数据
   std::string vocabulary_file_ = "config/offline_vocabulary_embeddings.json";
   std::string model_file_name_ = "config/yolo_world.bin";
@@ -147,8 +144,14 @@ class YoloWorldNode : public DnnNode {
   int num_class_ = 11;
 
   // 默认检测文本
-  std::string texts = "red bottle,trash bin";
+  std::string texts = "liquid stain,mild stain,solid stain,congee stain";
   std::vector<std::string> texts_ = {};
+
+  // 单应性矩阵
+  std::vector<double> homography_;
+  // y方向偏移量
+  double y_offset_ = 950;
+
   // 在线程中执行推理，避免阻塞订阅IO通道，导致AI msg消息丢失
   // std::mutex mtx_texts_;
   // std::condition_variable cv_texts_;
@@ -156,7 +159,7 @@ class YoloWorldNode : public DnnNode {
   std::condition_variable cv_text_;
 
   // 用于回灌的本地图片信息
-  std::string image_file_ = "config/yolo_world_test.jpg";
+  std::string image_file_ = "config/00131.jpg";
 
   // 发布AI消息的topic和发布者
   std::string ai_msg_pub_topic_name_ = "/hobot_yolo_world";

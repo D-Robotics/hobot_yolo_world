@@ -37,10 +37,7 @@ def generate_launch_description():
         "yolo_world_msg_pub_topic_name", default_value=TextSubstitution(text="hobot_yolo_world")
     )
     texts_launch_arg = DeclareLaunchArgument(
-        "yolo_world_texts", default_value=TextSubstitution(text="trash bin,red bottle")
-    )
-    dump_render_launch_arg = DeclareLaunchArgument(
-        "yolo_world_dump_render_img", default_value=TextSubstitution(text="0")
+        "yolo_world_texts", default_value=TextSubstitution(text="liquid stain,mild stain,solid stain,congee stain")
     )
 
     camera_type = os.getenv('CAM_TYPE')
@@ -77,7 +74,7 @@ def generate_launch_description():
         # 本地图片发布
         feedback_picture_arg = DeclareLaunchArgument(
             'publish_image_source',
-            default_value='./config/yolo_world_test.jpg',
+            default_value='./config/00131.jpg',
             description='feedback picture')
 
         fb_node = IncludeLaunchDescription(
@@ -179,14 +176,12 @@ def generate_launch_description():
         parameters=[
             {"feed_type": 1},
             {"is_shared_mem_sub": 1},
-            {"dump_render_img": LaunchConfiguration(
-                "yolo_world_dump_render_img")},
             {"msg_pub_topic_name": LaunchConfiguration(
                 "yolo_world_msg_pub_topic_name")},
             {"texts": LaunchConfiguration(
                 "yolo_world_texts")}
         ],
-        arguments=['--ros-args', '--log-level', 'warn']
+        arguments=['--ros-args', '--log-level', 'info']
     )
 
     shared_mem_node = IncludeLaunchDescription(
@@ -202,7 +197,6 @@ def generate_launch_description():
             image_width_launch_arg,
             image_height_launch_arg,
             msg_pub_topic_name_launch_arg,
-            dump_render_launch_arg,
             texts_launch_arg,
             # 启动零拷贝环境配置node
             shared_mem_node,
@@ -221,7 +215,6 @@ def generate_launch_description():
             image_width_launch_arg,
             image_height_launch_arg,
             msg_pub_topic_name_launch_arg,
-            dump_render_launch_arg,
             texts_launch_arg,
             # 启动零拷贝环境配置node
             shared_mem_node,

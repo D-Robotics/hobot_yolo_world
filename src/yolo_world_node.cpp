@@ -26,8 +26,30 @@
 
 #include "dnn_node/dnn_node.h"
 #include "include/image_utils.h"
+#include "include/post_process/yolo_world_output_parser.h"
 
 #include "include/yolo_world_node.h"
+
+// 3x3矩阵乘以3x1向量的函数
+std::vector<double> matrixMultiply(const std::vector<double>& H, const std::vector<double>& x1) {
+    std::vector<double> x2 = {0, 0, 0};
+
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            // x2[i] += H[i][j] * x1[j];
+            x2[i] += H[i * 3 + j] * x1[j];
+        }
+    }
+
+    // 归一化，x2 = x2 / x2[2]
+    if (x2[2] != 0) {
+        for (int i = 0; i < 3; ++i) {
+            x2[i] /= x2[2];
+        }
+    }
+
+    return x2;
+}
 
 // 时间格式转换
 builtin_interfaces::msg::Time ConvertToRosTime(
@@ -67,6 +89,7 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   this->declare_parameter<float>("score_threshold", score_threshold_);
   this->declare_parameter<float>("iou_threshold", iou_threshold_);
   this->declare_parameter<int>("nms_top_k", nms_top_k_);
+  this->declare_parameter<double>("y_offset", y_offset_);
   this->declare_parameter<std::string>("texts",
                                        texts);
   this->declare_parameter<std::string>("ai_msg_pub_topic_name",
@@ -83,6 +106,7 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   this->get_parameter<float>("score_threshold", score_threshold_);
   this->get_parameter<float>("iou_threshold", iou_threshold_);
   this->get_parameter<int>("nms_top_k", nms_top_k_);
+  this->get_parameter<double>("y_offset", y_offset_);
   this->get_parameter<std::string>("texts", texts);
   this->get_parameter<std::string>("ai_msg_pub_topic_name", ai_msg_pub_topic_name_);
   this->get_parameter<std::string>("ros_img_sub_topic_name", ros_img_sub_topic_name_);
@@ -98,6 +122,7 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
        << "\n score_threshold: " << score_threshold_
        << "\n iou_threshold: " << iou_threshold_
        << "\n nms_top_k: " << nms_top_k_
+       << "\n y_offset: " << y_offset_
        << "\n texts: " << texts
        << "\n ai_msg_pub_topic_name: " << ai_msg_pub_topic_name_
        << "\n ros_img_sub_topic_name: " << ros_img_sub_topic_name_
@@ -105,6 +130,7 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
     RCLCPP_WARN(rclcpp::get_logger("hobot_yolo_world"), "%s", ss.str().c_str());
   }
   LoadVocabulary();
+  LoadHomography();
   {
     std::stringstream ss;
     ss << "Parameter:"
@@ -147,11 +173,6 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   hbDNNTensorProperties tensor_properties;
   model->GetInputTensorProperties(tensor_properties, 1);
   num_class_ = tensor_properties.alignedShape.dimensionSize[1];
-
-  parser = std::make_shared<YoloOutputParser>();
-  parser->SetScoreThreshold(score_threshold_);
-  parser->SetIouThreshold(iou_threshold_);
-  parser->SetTopkThreshold(nms_top_k_);
 
   // 创建AI消息的发布者
   RCLCPP_WARN(rclcpp::get_logger("hobot_yolo_world"),
@@ -270,6 +291,50 @@ int YoloWorldNode::LoadVocabulary() {
   return 0;
 }
 
+int YoloWorldNode::LoadHomography() {
+  
+  std::string homography_file = "config/homography.json";
+  // Parsing config
+  std::ifstream ifs(homography_file.c_str());
+  if (!ifs) {
+    RCLCPP_ERROR(rclcpp::get_logger("hobot_yolo_world"),
+                "Read h file [%s] fail! File is not exit!",
+                homography_file.data());
+    return -1;
+  }
+  rapidjson::IStreamWrapper isw(ifs);
+  rapidjson::Document document;
+  document.ParseStream(isw);
+  if (document.HasParseError()) {
+    RCLCPP_ERROR(rclcpp::get_logger("hobot_yolo_world"),
+                "Parsing h file %s failed! Please check file format.",
+                homography_file.data());
+    return -1;
+  }
+
+  for (rapidjson::Value::ConstMemberIterator itr = document.MemberBegin(); itr != document.MemberEnd(); ++itr) {
+    std::string name = itr->name.GetString();
+    
+    // 处理不同类型的值
+    if (itr->value.IsArray()) {
+      if (itr->value.Size() != 9) {
+        RCLCPP_ERROR(rclcpp::get_logger("hobot_yolo_world"),
+          "Load h file Failed! size %d != 9.",
+          name.c_str(), itr->value.Size());
+        return -1;
+      }
+
+      for (rapidjson::SizeType i = 0; i < itr->value.Size(); ++i) {
+          homography_.push_back(itr->value[i].GetDouble());
+      }
+
+    }
+  }
+
+  return 0;
+}
+
+
 int YoloWorldNode::SetNodePara() {
   RCLCPP_INFO(rclcpp::get_logger("hobot_yolo_world"), "Set node para.");
   if (!dnn_node_para_ptr_) {
@@ -382,6 +447,11 @@ int YoloWorldNode::PostProcess(
   }
 
   // 2. 模型后处理解析
+  auto parser = std::make_shared<YoloOutputParser>();
+  parser->SetScoreThreshold(score_threshold_);
+  parser->SetIouThreshold(iou_threshold_);
+  parser->SetTopkThreshold(nms_top_k_);
+
   auto det_result = std::make_shared<DnnParserResult>();
   parser->Parse(det_result, parser_output->output_tensors, parser_output->class_names);
 
@@ -431,7 +501,7 @@ int YoloWorldNode::PostProcess(
 
   // 如果开启了渲染，本地渲染并存储图片
   if (dump_render_img_ && parser_output->tensor_image) {
-    ImageUtils::Render(parser_output->tensor_image, pub_data, parser_output->resized_h, parser_output->resized_w);
+    ImageUtils::Render(parser_output->tensor_image, pub_data);
   }
 
   if (parser_output->ratio != 1.0) {
@@ -443,6 +513,28 @@ int YoloWorldNode::PostProcess(
         roi.rect.width *= parser_output->ratio;
         roi.rect.height *= parser_output->ratio;
       }
+    }
+  }
+
+  for (auto &target : pub_data->targets) {
+    for (auto &roi : target.rois) {
+      std::vector<double> x1 = {
+          static_cast<double>(roi.rect.x_offset), 
+          static_cast<double>(roi.rect.y_offset + roi.rect.height / 2), 1.0};
+      std::vector<double> x2 = matrixMultiply(homography_, x1);
+      x2[0] = x2[0] - 960;
+      x2[1] = y_offset_ - x2[1];
+
+      auto attribute = ai_msgs::msg::Attribute();
+      attribute.set__type("x_cm");
+      // millimeter to centimeter
+      attribute.set__value(x2[0] / 10.0);
+      target.attributes.emplace_back(attribute);
+
+      attribute.set__type("y_cm");
+      // millimeter to centimeter
+      attribute.set__value(x2[1] / 10.0);
+      target.attributes.emplace_back(attribute);
     }
   }
 
@@ -464,13 +556,6 @@ int YoloWorldNode::PostProcess(
         ConvertToRosTime(node_output->rt_stat->infer_timespec_start);
     perf.stamp_end = ConvertToRosTime(node_output->rt_stat->infer_timespec_end);
     perf.set__time_ms_duration(node_output->rt_stat->infer_time_ms);
-    pub_data->perfs.push_back(perf);
-
-    perf.set__type(model_name_ + "_predict_parse");
-    perf.stamp_start =
-        ConvertToRosTime(node_output->rt_stat->parse_timespec_start);
-    perf.stamp_end = ConvertToRosTime(node_output->rt_stat->parse_timespec_end);
-    perf.set__time_ms_duration(node_output->rt_stat->parse_time_ms);
     pub_data->perfs.push_back(perf);
 
     // 后处理统计
@@ -533,12 +618,6 @@ int YoloWorldNode::FeedFromLocal() {
                  image_file_.c_str());
     return -1;
   }
-
-  cv::Mat bgr_mat = cv::imread(image_file_, cv::IMREAD_COLOR);
-  int original_img_width = bgr_mat.cols;
-  int original_img_height = bgr_mat.rows;
-  dnn_output->resized_w = static_cast<int>(static_cast<float>(original_img_width) / dnn_output->ratio);
-  dnn_output->resized_h = static_cast<int>(static_cast<float>(original_img_height) / dnn_output->ratio);
 
   // 2. 使用embeddings数据创建DNNTensor
   model->GetInputTensorProperties(tensor_properties, 1);
@@ -618,8 +697,6 @@ void YoloWorldNode::RosImgProcess(
       dnn_output->ratio,
       hobot::dnn_node::ImageType::BGR
     );
-    dnn_output->resized_h = static_cast<int>(static_cast<float>(cv_img->image.rows) / dnn_output->ratio);
-    dnn_output->resized_w = static_cast<int>(static_cast<float>(cv_img->image.cols) / dnn_output->ratio);
   } else if ("bgr8" == img_msg->encoding) {
     auto cv_img =
         cv_bridge::cvtColorForDisplay(cv_bridge::toCvShare(img_msg), "bgr8");
@@ -630,8 +707,6 @@ void YoloWorldNode::RosImgProcess(
       tensor_properties,
       dnn_output->ratio,
       hobot::dnn_node::ImageType::RGB);
-    dnn_output->resized_h = static_cast<int>(static_cast<float>(cv_img->image.rows) / dnn_output->ratio);
-    dnn_output->resized_w = static_cast<int>(static_cast<float>(cv_img->image.cols) / dnn_output->ratio);
   } else if ("nv12" == img_msg->encoding) {  // nv12格式使用hobotcv resize
     cv::Mat bgr_mat;
     hobot::dnn_node::ImageProc::Nv12ToBGR(reinterpret_cast<const char *>(img_msg->data.data()), img_msg->height, img_msg->width, bgr_mat);
@@ -642,8 +717,6 @@ void YoloWorldNode::RosImgProcess(
       tensor_properties,
       dnn_output->ratio,
       hobot::dnn_node::ImageType::RGB);
-    dnn_output->resized_h = static_cast<int>(static_cast<float>(bgr_mat.rows) / dnn_output->ratio);
-    dnn_output->resized_w = static_cast<int>(static_cast<float>(bgr_mat.cols) / dnn_output->ratio);
   }
 
   if (!tensor_image) {
@@ -730,8 +803,6 @@ void YoloWorldNode::SharedMemImgProcess(
           tensor_properties,
           dnn_output->ratio,
           hobot::dnn_node::ImageType::RGB);
-    dnn_output->resized_h = static_cast<int>(static_cast<float>(bgr_mat.rows) / dnn_output->ratio);
-    dnn_output->resized_w = static_cast<int>(static_cast<float>(bgr_mat.cols) / dnn_output->ratio);
   } else {
     RCLCPP_ERROR(rclcpp::get_logger("hobot_yolo_world"),
                  "Unsupported img encoding: %s, only nv12 img encoding is "
@@ -771,7 +842,6 @@ void YoloWorldNode::SharedMemImgProcess(
   dnn_output->msg_header->set__frame_id(std::to_string(img_msg->index));
   dnn_output->msg_header->set__stamp(img_msg->time_stamp);
   dnn_output->class_names = std::move(class_names);
-  
   
   clock_gettime(CLOCK_REALTIME, &time_now);
   dnn_output->perf_preprocess.stamp_end.sec = time_now.tv_sec;

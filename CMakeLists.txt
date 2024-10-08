@@ -25,8 +25,6 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
 
-set(CMAKE_BUILD_TYPE RelWithDebInfo)
-
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -150,7 +148,12 @@ install(FILES
 )
 
 install(FILES
-  ${PROJECT_SOURCE_DIR}/config/yolo_world_test.jpg
+  ${PROJECT_SOURCE_DIR}/config/homography.json
+  DESTINATION lib/${PROJECT_NAME}/config/
+)
+
+install(FILES
+  ${PROJECT_SOURCE_DIR}/config/00131.jpg
   DESTINATION lib/${PROJECT_NAME}/config/
 )
 
