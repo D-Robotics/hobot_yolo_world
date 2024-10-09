@@ -36,12 +36,10 @@ std::vector<double> matrixMultiply(const std::vector<double>& H, const std::vect
 
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
-            // x2[i] += H[i][j] * x1[j];
             x2[i] += H[i * 3 + j] * x1[j];
         }
     }
 
-    // 归一化，x2 = x2 / x2[2]
     if (x2[2] != 0) {
         for (int i = 0; i < 3; ++i) {
             x2[i] /= x2[2];
@@ -520,20 +518,37 @@ int YoloWorldNode::PostProcess(
     for (auto &roi : target.rois) {
       std::vector<double> x1 = {
           static_cast<double>(roi.rect.x_offset), 
-          static_cast<double>(roi.rect.y_offset + roi.rect.height / 2), 1.0};
-      std::vector<double> x2 = matrixMultiply(homography_, x1);
-      x2[0] = x2[0] - 960;
-      x2[1] = y_offset_ - x2[1];
+          static_cast<double>(roi.rect.y_offset + roi.rect.height), 1.0};
+      std::vector<double> y1 = matrixMultiply(homography_, x1);
+      y1[0] = y1[0] - 960;
+      y1[1] = y_offset_ - y1[1];
 
       auto attribute = ai_msgs::msg::Attribute();
-      attribute.set__type("x_cm");
+      attribute.set__type("left_botton_x_cm");
       // millimeter to centimeter
-      attribute.set__value(x2[0] / 10.0);
+      attribute.set__value(y1[0] / 10.0);
       target.attributes.emplace_back(attribute);
 
-      attribute.set__type("y_cm");
+      attribute.set__type("left_botton_y_cm");
       // millimeter to centimeter
-      attribute.set__value(x2[1] / 10.0);
+      attribute.set__value(y1[1] / 10.0);
+      target.attributes.emplace_back(attribute);
+
+      std::vector<double> x2 = {
+          static_cast<double>(roi.rect.x_offset + roi.rect.width), 
+          static_cast<double>(roi.rect.y_offset + roi.rect.height), 1.0};
+      std::vector<double> y2 = matrixMultiply(homography_, x2);
+      y2[0] = y2[0] - 960;
+      y2[1] = y_offset_ - y2[1];
+
+      attribute.set__type("right_botton_x_cm");
+      // millimeter to centimeter
+      attribute.set__value(y2[0] / 10.0);
+      target.attributes.emplace_back(attribute);
+
+      attribute.set__type("right_botton_y_cm");
+      // millimeter to centimeter
+      attribute.set__value(y2[1] / 10.0);
       target.attributes.emplace_back(attribute);
     }
   }

@@ -84,7 +84,7 @@ def generate_launch_description():
                 "yolo_world_msg_pub_topic_name")},
             {"texts": LaunchConfiguration(
                 "yolo_world_texts")},
-            {"y_offset": 1080.0},
+            {"y_offset": 800.0},
             {"ros_img_sub_topic_name": '/image_raw'},
             {"ai_msg_pub_topic_name": '/hobot_yolo_world'},
             {"port_interaction": LaunchConfiguration("ws_port_interaction")}
