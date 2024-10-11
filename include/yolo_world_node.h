@@ -79,6 +79,9 @@ class YoloWorldNode : public DnnNode {
   // 解析配置文件，包好模型文件路径、解析方法等信息
   int LoadVocabulary();
 
+  // 加载单应性矩阵配置文件
+  int LoadHomography();
+
   // 本地回灌进行算法推理
   int FeedFromLocal();
 
@@ -141,6 +144,12 @@ class YoloWorldNode : public DnnNode {
 
   // 类别数量
   int num_class_ = 80;
+
+  // 单应性矩阵
+  std::vector<double> homography_;
+  // y方向偏移量
+  double y_offset_ = 950;
+  int is_homography_ = 0;
 
   // 用于回灌的本地图片信息
   std::string image_file_ = "config/yolo_world_test.jpg";

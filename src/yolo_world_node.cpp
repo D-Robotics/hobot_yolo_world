@@ -31,6 +31,25 @@
 
 #include "include/yolo_world_node.h"
 
+// 3x3矩阵乘以3x1向量的函数
+std::vector<double> matrixMultiply(const std::vector<double>& H, const std::vector<double>& x1) {
+    std::vector<double> x2 = {0, 0, 0};
+
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            x2[i] += H[i * 3 + j] * x1[j];
+        }
+    }
+
+    if (x2[2] != 0) {
+        for (int i = 0; i < 3; ++i) {
+            x2[i] /= x2[2];
+        }
+    }
+
+    return x2;
+}
+
 // 时间格式转换
 builtin_interfaces::msg::Time ConvertToRosTime(
     const struct timespec &time_spec) {
@@ -105,6 +124,8 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   this->declare_parameter<float>("score_threshold", score_threshold_);
   this->declare_parameter<float>("iou_threshold", iou_threshold_);
   this->declare_parameter<int>("nms_top_k", nms_top_k_);
+  this->declare_parameter<int>("is_homography", is_homography_);
+  this->declare_parameter<double>("y_offset", y_offset_);
   this->declare_parameter<std::string>("ai_msg_pub_topic_name",
                                        ai_msg_pub_topic_name_);
   this->declare_parameter<std::string>("ros_img_sub_topic_name",
@@ -119,6 +140,8 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   this->get_parameter<float>("score_threshold", score_threshold_);
   this->get_parameter<float>("iou_threshold", iou_threshold_);
   this->get_parameter<int>("nms_top_k", nms_top_k_);
+  this->get_parameter<int>("is_homography", is_homography_);
+  this->get_parameter<double>("y_offset", y_offset_);
   this->get_parameter<std::string>("ai_msg_pub_topic_name", ai_msg_pub_topic_name_);
   this->get_parameter<std::string>("ros_img_sub_topic_name", ros_img_sub_topic_name_);
 
@@ -134,6 +157,8 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
        << "\n score_threshold: " << score_threshold_
        << "\n iou_threshold: " << iou_threshold_
        << "\n nms_top_k: " << nms_top_k_
+       << "\n is_homography: " << is_homography_
+       << "\n y_offset: " << y_offset_
        << "\n ai_msg_pub_topic_name: " << ai_msg_pub_topic_name_
        << "\n ros_img_sub_topic_name: " << ros_img_sub_topic_name_;
     RCLCPP_WARN(rclcpp::get_logger("hobot_yolo_world"), "%s", ss.str().c_str());
@@ -175,6 +200,9 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   is_nv12_ = tensor_properties.tensorType == HB_DNN_IMG_TYPE_NV12 ? true : false;
 
   if (LoadVocabulary() != 0) {
+    return;
+  }
+  if (is_homography_ == 1 && LoadHomography() != 0) {
     return;
   }
 
@@ -288,6 +316,49 @@ int YoloWorldNode::LoadVocabulary() {
     }
     return 0;
   }
+  return 0;
+}
+
+int YoloWorldNode::LoadHomography() {
+  
+  std::string homography_file = "config/homography.json";
+  // Parsing config
+  std::ifstream ifs(homography_file.c_str());
+  if (!ifs) {
+    RCLCPP_ERROR(rclcpp::get_logger("hobot_yolo_world"),
+                "Read h file [%s] fail! File is not exit!",
+                homography_file.data());
+    return -1;
+  }
+  rapidjson::IStreamWrapper isw(ifs);
+  rapidjson::Document document;
+  document.ParseStream(isw);
+  if (document.HasParseError()) {
+    RCLCPP_ERROR(rclcpp::get_logger("hobot_yolo_world"),
+                "Parsing h file %s failed! Please check file format.",
+                homography_file.data());
+    return -1;
+  }
+
+  for (rapidjson::Value::ConstMemberIterator itr = document.MemberBegin(); itr != document.MemberEnd(); ++itr) {
+    std::string name = itr->name.GetString();
+    
+    // 处理不同类型的值
+    if (itr->value.IsArray()) {
+      if (itr->value.Size() != 9) {
+        RCLCPP_ERROR(rclcpp::get_logger("hobot_yolo_world"),
+          "Load h file Failed! size %d != 9.",
+          name.c_str(), itr->value.Size());
+        return -1;
+      }
+
+      for (rapidjson::SizeType i = 0; i < itr->value.Size(); ++i) {
+          homography_.push_back(itr->value[i].GetDouble());
+      }
+
+    }
+  }
+
   return 0;
 }
 
@@ -439,6 +510,81 @@ int YoloWorldNode::PostProcess(
         roi.rect.width *= parser_output->ratio;
         roi.rect.height *= parser_output->ratio;
       }
+    }
+  }
+
+  if (is_homography_ == 1) {
+    for (auto &target : pub_data->targets) {
+      for (auto &roi : target.rois) {
+        std::vector<double> x1 = {
+            static_cast<double>(roi.rect.x_offset), 
+            static_cast<double>(roi.rect.y_offset + roi.rect.height), 1.0};
+        std::vector<double> y1 = matrixMultiply(homography_, x1);
+        y1[0] = y1[0] - 960;
+        y1[1] = y_offset_ - y1[1];
+
+        auto attribute = ai_msgs::msg::Attribute();
+        attribute.set__type("left_botton_x_cm");
+        // millimeter to centimeter
+        attribute.set__value(y1[0] / 10.0);
+        target.attributes.emplace_back(attribute);
+
+        attribute.set__type("left_botton_y_cm");
+        // millimeter to centimeter
+        attribute.set__value(y1[1] / 10.0);
+        target.attributes.emplace_back(attribute);
+
+        std::vector<double> x2 = {
+            static_cast<double>(roi.rect.x_offset + roi.rect.width), 
+            static_cast<double>(roi.rect.y_offset + roi.rect.height), 1.0};
+        std::vector<double> y2 = matrixMultiply(homography_, x2);
+        y2[0] = y2[0] - 960;
+        y2[1] = y_offset_ - y2[1];
+
+        attribute.set__type("right_botton_x_cm");
+        // millimeter to centimeter
+        attribute.set__value(y2[0] / 10.0);
+        target.attributes.emplace_back(attribute);
+
+        attribute.set__type("right_botton_y_cm");
+        // millimeter to centimeter
+        attribute.set__value(y2[1] / 10.0);
+        target.attributes.emplace_back(attribute);
+
+        std::vector<double> x3 = {
+            static_cast<double>(roi.rect.x_offset), 
+            static_cast<double>(roi.rect.y_offset), 1.0};
+        std::vector<double> y3 = matrixMultiply(homography_, x3);
+        y3[0] = y3[0] - 960;
+        y3[1] = y_offset_ - y3[1];
+
+        attribute.set__type("left_top_x_cm");
+        // millimeter to centimeter
+        attribute.set__value(y3[0] / 10.0);
+        target.attributes.emplace_back(attribute);
+
+        attribute.set__type("left_top_y_cm");
+        // millimeter to centimeter
+        attribute.set__value(y3[1] / 10.0);
+        target.attributes.emplace_back(attribute);
+
+        std::vector<double> x4 = {
+            static_cast<double>(roi.rect.x_offset + roi.rect.width), 
+            static_cast<double>(roi.rect.y_offset), 1.0};
+        std::vector<double> y4 = matrixMultiply(homography_, x4);
+        y4[0] = y4[0] - 960;
+        y4[1] = y_offset_ - y4[1];
+
+        attribute.set__type("right_top_x_cm");
+        // millimeter to centimeter
+        attribute.set__value(y4[0] / 10.0);
+        target.attributes.emplace_back(attribute);
+
+        attribute.set__type("right_top_y_cm");
+        // millimeter to centimeter
+        attribute.set__value(y4[1] / 10.0);
+        target.attributes.emplace_back(attribute);
+      }  
     }
   }
 
@@ -621,6 +767,84 @@ void YoloWorldNode::RosImgProcess(
   dnn_output->perf_preprocess.stamp_start.sec = time_now.tv_sec;
   dnn_output->perf_preprocess.stamp_start.nanosec = time_now.tv_nsec;
 
+  if (is_nv12_) {
+    std::shared_ptr<hobot::dnn_node::NV12PyramidInput> pyramid = nullptr;
+    if ("rgb8" == img_msg->encoding) {
+      auto cv_img =
+          cv_bridge::cvtColorForDisplay(cv_bridge::toCvShare(img_msg), "bgr8");
+      pyramid = hobot::dnn_node::ImageProc::GetNV12PyramidFromBGRImg(
+          cv_img->image, model_input_height_, model_input_width_);
+    } else if ("bgr8" == img_msg->encoding) {
+      auto cv_img =
+          cv_bridge::cvtColorForDisplay(cv_bridge::toCvShare(img_msg), "bgr8");
+      pyramid = hobot::dnn_node::ImageProc::GetNV12PyramidFromBGRImg(
+          cv_img->image, model_input_height_, model_input_width_);
+    } else if ("nv12" == img_msg->encoding) {  // nv12格式使用hobotcv resize
+      if (img_msg->height != static_cast<uint32_t>(model_input_height_) ||
+          img_msg->width != static_cast<uint32_t>(model_input_width_)) {
+        // 需要做resize处理
+        cv::Mat out_img;
+        if (ResizeNV12Img(reinterpret_cast<const char *>(img_msg->data.data()),
+                          img_msg->height,
+                          img_msg->width,
+                          dnn_output->resized_h,
+                          dnn_output->resized_w,
+                          model_input_height_,
+                          model_input_width_,
+                          out_img,
+                          dnn_output->ratio) < 0) {
+          RCLCPP_ERROR(rclcpp::get_logger("dnn_node_example"),
+                      "Resize nv12 img fail!");
+          return;
+        }
+
+        uint32_t out_img_width = out_img.cols;
+        uint32_t out_img_height = out_img.rows * 2 / 3;
+        pyramid = hobot::dnn_node::ImageProc::GetNV12PyramidFromNV12Img(
+            reinterpret_cast<const char *>(out_img.data),
+            out_img_height,
+            out_img_width,
+            model_input_height_,
+            model_input_width_);
+      } else {  //不需要进行resize
+        pyramid = hobot::dnn_node::ImageProc::GetNV12PyramidFromNV12Img(
+            reinterpret_cast<const char *>(img_msg->data.data()),
+            img_msg->height,
+            img_msg->width,
+            model_input_height_,
+            model_input_width_);
+      }
+    }
+
+    if (!pyramid) {
+      RCLCPP_ERROR(this->get_logger(), "Get Nv12 pym fail");
+      return;
+    }
+
+    // 2. 使用pyramid创建DNNInput对象inputs
+    // inputs将会作为模型的输入通过RunInferTask接口传入
+    auto inputs = std::vector<std::shared_ptr<DNNInput>>{pyramid};
+
+    // 3. 初始化输出
+    dnn_output->img_w = img_msg->width;
+    dnn_output->img_h = img_msg->height;
+    dnn_output->msg_header = std::make_shared<std_msgs::msg::Header>();
+    dnn_output->msg_header->set__frame_id(img_msg->header.frame_id);
+    dnn_output->msg_header->set__stamp(img_msg->header.stamp);
+
+    if (dump_render_img_) {
+      dnn_output->pyramid = pyramid;
+    }
+
+    // 4. 开始预测
+    int ret = Run(inputs, dnn_output, nullptr, false);
+    if (ret != 0 && ret != HB_DNN_TASK_NUM_EXCEED_LIMIT) {
+      RCLCPP_INFO(this->get_logger(), "Run predict failed!");
+      return;
+    }
+    return;
+  }
+
   // 1. 将图片处理成模型输入数据类型DNNTensor
   auto model = GetModel();
   hbDNNTensorProperties tensor_properties;
@@ -752,12 +976,6 @@ void YoloWorldNode::SharedMemImgProcess(
             model_input_height_,
             model_input_width_);
       } else {
-        
-        int image_height = img_msg->height;
-        int image_width = img_msg->width;
-        dnn_output->resized_h = std::min(image_height, model_input_height_);
-        dnn_output->resized_w = std::min(image_width, model_input_width_);
-
         //不需要进行resize
         pyramid = hobot::dnn_node::ImageProc::GetNV12PyramidFromNV12Img(
             reinterpret_cast<const char *>(img_msg->data.data()),
