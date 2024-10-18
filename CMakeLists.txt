@@ -147,7 +147,12 @@ install(FILES
 )
 
 install(FILES
-  ${PROJECT_SOURCE_DIR}/config/yolo_world_test.jpg
+  ${PROJECT_SOURCE_DIR}/config/homography.json
+  DESTINATION lib/${PROJECT_NAME}/config/
+)
+
+install(FILES
+  ${PROJECT_SOURCE_DIR}/config/00131.jpg
   DESTINATION lib/${PROJECT_NAME}/config/
 )
 

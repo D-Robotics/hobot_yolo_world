@@ -116,12 +116,11 @@ hbm_img_msgs为自定义的图片消息格式, 用于shared mem场景下的图�
 | 参数名             | 解释                                  | 是否必须             | 默认值              | 备注                                                                    |
 | ------------------ | ------------------------------------- | -------------------- | ------------------- | ----------------------------------------------------------------------- |
 | feed_type          | 图片来源, 0：本地；1：订阅            | 否                   | 0                   |                                                                         |
-| image              | 本地图片地址                          | 否                   | config/yolo_world_test.jpg     |                                                                         |
+| image              | 本地图片地址                          | 否                   | config/00131.jpg     |                                                                         |
 | is_shared_mem_sub  | 使用shared mem通信方式订阅图片        | 否                   | 0                   |                                                                         |
 | score_threshold | 模型输出置信度阈值 | 否 | 0.05 | |
 | iou_threshold | nms iou阈值 | 否 | 0.45 | |
 | nms_top_k | 检测前k个框 | 否 | 50 | |
-| texts | 检测类型 | 否 | "red bottle,trash bin" | 每个类别中间通过逗号隔开 |
 | dump_render_img    | 是否进行渲染，0：否；1：是            | 否                   | 0                   |                                                                         |
 | ai_msg_pub_topic_name | 发布智能结果的topicname,用于web端展示 | 否                   | /hobot_yolo_world | |
 | ros_img_sub_topic_name | 接收ros图片话题名 | 否                   | /image | |
@@ -154,7 +153,7 @@ cp -r install/hobot_yolo_world/lib/hobot_yolo_world/config/ .
 
 # 运行模式1：
 # 使用本地jpg格式图片进行回灌预测, 输入自定义类别
-ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/yolo_world_test.jpg -p image_type:=0 -p texts:="red bottle,trash bin" -p dump_render_img:=1
+ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/00131.jpg -p image_type:=0 -p dump_render_img:=1
 
 # 运行模式2：
 # 使用订阅到的image msg(topic为/image)进行预测, 设置受控话题名(/target_words)为并设置log级别为warn。同时在另一个窗口发送string话题(topic为/target_words) 变更检测类别
@@ -163,7 +162,7 @@ ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=1 --ros-args
 ros2 topic pub /target_words std_msgs/msg/String "{data: 'red bottle,trash bin'}"
 
 # 运行模式3：使用shared mem通信方式(topic为/hbmem_img)进行预测, 并设置log级别为warn, 输入自定义类别。
-ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=1 -p is_shared_mem_sub:=1 -p texts:="red bottle,trash bin" --ros-args --log-level warn
+ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=1 -p is_shared_mem_sub:=1 --ros-args --log-level warn
 
 ```
 
@@ -193,7 +192,7 @@ cp -r install/lib/hobot_yolo_world/config/ .
 
 # 运行模式1：
 # 使用本地jpg格式图片进行回灌预测, 输入自定义类别
-./install/lib/hobot_yolo_world/hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/yolo_world_test.jpg -p image_type:=0 -p texts:="red bottle,trash bin" -p dump_render_img:=1
+./install/lib/hobot_yolo_world/hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/00131.jpg -p image_type:=0 -p dump_render_img:=1
 
 # 运行模式2：
 # 使用订阅到的image msg(topic为/image)进行预测, 设置受控话题名(/target_words)为并设置log级别为warn。同时在另一个窗口发送string话题(topic为/target_words) 变更检测类别
@@ -202,7 +201,7 @@ cp -r install/lib/hobot_yolo_world/config/ .
 ros2 topic pub /target_words std_msgs/msg/String "{data: 'red bottle,trash bin'}"
 
 # 运行模式3：使用shared mem通信方式(topic为/hbmem_img)通过异步模式进行预测, 并设置log级别为warn
-./install/lib/hobot_yolo_world/hobot_yolo_world --ros-args -p feed_type:=1 -p is_shared_mem_sub:=1 -p texts:="red bottle,trash bin" --ros-args --log-level warn
+./install/lib/hobot_yolo_world/hobot_yolo_world --ros-args -p feed_type:=1 -p is_shared_mem_sub:=1 --ros-args --log-level warn
 
 ```
 
@@ -224,13 +223,13 @@ ros2 launch hobot_yolo_world yolo_world.launch.py
 
 log：
 
-运行命令：`ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/yolo_world_test.jpg -p image_type:=0 -p texts:="red bottle,trash bin"`
+运行命令：`ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/00131.jpg -p image_type:=0`
 
 ```shell
 [WARN] [0946772900.277397980] [hobot_yolo_world]: This is hobot yolo world!
 [WARN] [0946772900.354454855] [hobot_yolo_world]: Parameter:
  feed_type(0:local, 1:sub): 0
- image: config/yolo_world_test.jpg
+ image: config/00131.jpg
  dump_render_img: 0
  is_shared_mem_sub: 0
  score_threshold: 0.05
@@ -269,7 +268,7 @@ name: yolo_world_pad_pretrain_norm_new.
 [WARN] [0946772901.462980939] [hobot_yolo_world]: Get model name: yolo_world_pad_pretrain_norm_new from load model.
 [INFO] [0946772901.463024689] [hobot_yolo_world]: The model input width is 640 and height is 640
 [WARN] [0946772901.463085689] [hobot_yolo_world]: Create ai msg publisher with topic_name: /hobot_yolo_world
-[INFO] [0946772901.524073897] [hobot_yolo_world]: Dnn node feed with local image: config/yolo_world_test.jpg
+[INFO] [0946772901.524073897] [hobot_yolo_world]: Dnn node feed with local image: config/00131.jpg
 [INFO] [0946772903.571811231] [hobot_yolo_world]: Output from frame_id: feedback, stamp: 0.0
 [INFO] [0946772903.576643231] [hobot_yolo_world]: out box size: 2
 [INFO] [0946772903.576793065] [hobot_yolo_world]: det rect: 509.563 330.235 548.52 416.712, det type: red bottle, score:0.537009

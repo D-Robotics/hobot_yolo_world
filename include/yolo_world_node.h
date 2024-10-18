@@ -110,7 +110,7 @@ class YoloWorldNode : public DnnNode {
 
   // 用于解析的配置文件，以及解析后的数据
   std::string vocabulary_file_name_ = "config/offline_vocabulary_embeddings.json";
-  std::string model_file_name_ = "config/DOSOD_M_80_without-nms_int16_nv12.bin";
+  std::string model_file_name_ = "config/DOSOD_L_4_without_nms_int16_nv12_conv_int8_v7_1016.bin";
   
   std::string model_name_ = "";
 
@@ -140,7 +140,7 @@ class YoloWorldNode : public DnnNode {
   int is_shared_mem_sub_ = 0;
 
   // 算法推理的任务数
-  int task_num_ = 10;
+  int task_num_ = 2;
 
   // 类别数量
   int num_class_ = 80;
@@ -152,7 +152,7 @@ class YoloWorldNode : public DnnNode {
   int is_homography_ = 0;
 
   // 用于回灌的本地图片信息
-  std::string image_file_ = "config/yolo_world_test.jpg";
+  std::string image_file_ = "config/00131.jpg";
 
   // 发布AI消息的topic和发布者
   std::string ai_msg_pub_topic_name_ = "/hobot_yolo_world";

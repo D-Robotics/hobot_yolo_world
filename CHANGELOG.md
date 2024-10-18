@@ -1,5 +1,9 @@
 # Changelog for package hobot_yolo_world
 
+tros_0.5.1 (2024-10-18)
+------------------
+1. 新增DOSOD模型水渍检测。
+
 tros_0.5.0 (2024-09-18)
 ------------------
 1. 更新了rep版本yolo-worldv2模型与词汇表，自定义检测能力更强。

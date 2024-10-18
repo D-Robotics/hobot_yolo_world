@@ -113,12 +113,11 @@ X86 Ubuntu version: ubuntu22.04
 | Parameter Name      | Explanation                            | Mandatory            | Default Value       | Remarks                                                                 |
 | ------------------- | -------------------------------------- | -------------------- | ------------------- | ----------------------------------------------------------------------- |
 | feed_type           | Image source, 0: local; 1: subscribe   | No                   | 0                   |                                                                         |
-| image               | Local image path                       | No                   | config/yolo_world_test.jpg     |                                                                         |
+| image               | Local image path                       | No                   | config/00131.jpg     |                                                                         |
 | is_shared_mem_sub   | Subscribe to images using shared memory communication method | No  | 0                   |                                                                         |                                                                   |
 | score_threshold | boxes confidence threshold | No | 0.05 | |
 | iou_threshold | nms iou threshold | No | 0.45 | |
 | nms_top_k | Detect the first k boxes | No | 50 | |
-| texts | detect types | No | "red bottle,trash bin" | Separate each category with a comma in the middle |
 | dump_render_img     | Whether to render, 0: no; 1: yes       | No                   | 0                   |                                                                         |
 | ai_msg_pub_topic_name | Topic name for publishing intelligent results for web display | No                   | /hobot_yolo_world | |
 | ros_img_sub_topic_name | Topic name for subscribing image msg | No                   | /image | |
@@ -146,7 +145,7 @@ cp -r install/hobot_yolo_world/lib/hobot_yolo_world/config/ .
 
 # Run mode 1:Use local JPG format images for backflow prediction, with input categories:
 
-ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/yolo_world_test.jpg -p image_type:=0 -p texts:="red bottle,trash bin" -p dump_render_img:=1
+ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/00131.jpg -p image_type:=0 -p dump_render_img:=1
 
 # Run mode 2:Use the subscribed image msg (topic name: /image) for prediction, set the controlled topic name (topic name: /target_words) to and set the log level to warn. At the same time, send a string topic (topic name: /target_words) in another window to change the detection category:
 
@@ -156,7 +155,7 @@ ros2 topic pub /target_words std_msgs/msg/String "{data: 'red bottle,trash bin'}
 
 # Run mode 3: Use shared memory communication method (topic name: /hbmem_img) to perform inference in asynchronous mode and set the log level to warn, with input categories:
 
-ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=1 -p is_shared_mem_sub:=1 -p texts:="red bottle,trash bin" --ros-args --log-level warn
+ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=1 -p is_shared_mem_sub:=1 --ros-args --log-level warn
 ```
 
 To run in mode 2 using a launch file:
@@ -185,7 +184,7 @@ export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:./install/lib/
 cp -r install/lib/hobot_yolo_world/config/ .
 
 # Run mode 1:Use local JPG format images for backflow prediction, with input categories:
-./install/lib/hobot_yolo_world/hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/yolo_world_test.jpg -p image_type:=0 -p texts:="red bottle,trash bin" -p dump_render_img:=1
+./install/lib/hobot_yolo_world/hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/00131.jpg -p image_type:=0 -p dump_render_img:=1
 
 # Run mode 2:Use the subscribed image msg (topic name: /image) for prediction, set the controlled topic name (topic name: /target_words) to and set the log level to warn. At the same time, send a string topic (topic name: /target_words) in another window to change the detection category:
 ./install/lib/hobot_yolo_world/hobot_yolo_world --ros-args -p feed_type:=1 --ros-args --log-level warn -p ros_string_sub_topic_name:="/target_words"
@@ -193,7 +192,7 @@ cp -r install/lib/hobot_yolo_world/config/ .
 ros2 topic pub /target_words std_msgs/msg/String "{data: 'red bottle,trash bin'}"
 
 # Run mode 3: Use shared memory communication method (topic name: /hbmem_img) to perform inference in asynchronous mode and set the log level to warn, with input categories:
-./install/lib/hobot_yolo_world/hobot_yolo_world --ros-args -p feed_type:=1 -p is_shared_mem_sub:=1 -p texts:="red bottle,trash bin" --ros-args --log-level warn
+./install/lib/hobot_yolo_world/hobot_yolo_world --ros-args -p feed_type:=1 -p is_shared_mem_sub:=1 --ros-args --log-level warn
 ```
 
 ## Run on X86 Ubuntu system:
@@ -215,13 +214,13 @@ ros2 launch hobot_yolo_world yolo_world.launch.py
 
 log:
 
-Command executed: `ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/yolo_world_test.jpg -p image_type:=0 -p texts:="red bottle,trash bin"`
+Command executed: `ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed_type:=0 -p image:=config/00131.jpg -p image_type:=0`
 
 ```shell
 [WARN] [0946772900.277397980] [hobot_yolo_world]: This is hobot yolo world!
 [WARN] [0946772900.354454855] [hobot_yolo_world]: Parameter:
  feed_type(0:local, 1:sub): 0
- image: config/yolo_world_test.jpg
+ image: config/00131.jpg
  dump_render_img: 0
  is_shared_mem_sub: 0
  score_threshold: 0.05
@@ -260,7 +259,7 @@ name: yolo_world_pad_pretrain_norm_new.
 [WARN] [0946772901.462980939] [hobot_yolo_world]: Get model name: yolo_world_pad_pretrain_norm_new from load model.
 [INFO] [0946772901.463024689] [hobot_yolo_world]: The model input width is 640 and height is 640
 [WARN] [0946772901.463085689] [hobot_yolo_world]: Create ai msg publisher with topic_name: /hobot_yolo_world
-[INFO] [0946772901.524073897] [hobot_yolo_world]: Dnn node feed with local image: config/yolo_world_test.jpg
+[INFO] [0946772901.524073897] [hobot_yolo_world]: Dnn node feed with local image: config/00131.jpg
 [INFO] [0946772903.571811231] [hobot_yolo_world]: Output from frame_id: feedback, stamp: 0.0
 [INFO] [0946772903.576643231] [hobot_yolo_world]: out box size: 2
 [INFO] [0946772903.576793065] [hobot_yolo_world]: det rect: 509.563 330.235 548.52 416.712, det type: red bottle, score:0.537009

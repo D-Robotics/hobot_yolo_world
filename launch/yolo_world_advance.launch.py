@@ -30,11 +30,20 @@ def generate_launch_description():
     msg_pub_topic_name_launch_arg = DeclareLaunchArgument(
         "yolo_world_msg_pub_topic_name", default_value=TextSubstitution(text="hobot_yolo_world")
     )
+    model_file_name_launch_arg = DeclareLaunchArgument(
+        "yolo_world_model_file_name", default_value=TextSubstitution(text="config/DOSOD_L_4_without_nms_int16_nv12_conv_int8_v7_1016.bin")
+    )
+    vocabulary_file_name_launch_arg = DeclareLaunchArgument(
+        "yolo_world_vocabulary_file_name", default_value=TextSubstitution(text="config/offline_vocabulary_embeddings.json")
+    )
     dump_render_launch_arg = DeclareLaunchArgument(
         "yolo_world_dump_render_img", default_value=TextSubstitution(text="0")
     )
     port_interaction_arg = DeclareLaunchArgument(
         "ws_port_interaction", default_value=TextSubstitution(text="8081")
+    )
+    score_threshold_launch_arg = DeclareLaunchArgument(
+        "yolo_world_score_threshold", default_value=TextSubstitution(text="0.22")
     )
 
     # jpeg->nv12
@@ -79,13 +88,18 @@ def generate_launch_description():
                 "yolo_world_dump_render_img")},
             {"msg_pub_topic_name": LaunchConfiguration(
                 "yolo_world_msg_pub_topic_name")},
-            {"score_threshold": 0.22},
+            {"score_threshold": LaunchConfiguration(
+                "yolo_world_score_threshold")},
             {"iou_threshold": 0.5},
             {"nms_top_k": 50},
             {"is_homography": 1},
             {"y_offset": 800.0},
             {"ros_img_sub_topic_name": '/image_raw'},
             {"ai_msg_pub_topic_name": '/hobot_yolo_world'},
+            {"model_file_name": LaunchConfiguration(
+                "yolo_world_model_file_name")},
+            {"vocabulary_file_name": LaunchConfiguration(
+                "yolo_world_vocabulary_file_name")},
             {"port_interaction": LaunchConfiguration("ws_port_interaction")}
         ],
         arguments=['--ros-args', '--log-level', 'warn']
@@ -96,6 +110,9 @@ def generate_launch_description():
         msg_pub_topic_name_launch_arg,
         dump_render_launch_arg,
         port_interaction_arg,
+        model_file_name_launch_arg,
+        vocabulary_file_name_launch_arg,
+        score_threshold_launch_arg,
         # 图片编解码&发布pkg
         nv12_codec_node,
         # 启动yoloworld pkg

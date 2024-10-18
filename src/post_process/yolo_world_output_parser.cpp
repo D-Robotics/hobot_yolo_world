@@ -87,7 +87,7 @@ int32_t YoloOutputParser::PostProcessWithoutDecode(
                     class_names[max_index].c_str()));
     }
   }
-  nms(dets, iou_threshold_, nms_top_k_, perception.det, false);
+  nms(dets, iou_threshold_, nms_top_k_, perception.det, true);
   return 0;
 }
 
