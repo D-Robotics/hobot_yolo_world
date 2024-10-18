@@ -19,6 +19,7 @@
   <depend>sensor_msgs</depend>
   <depend>hbm_img_msgs</depend>
   <depend>ai_msgs</depend>
+  <depend>hobot_cv</depend>
 
   <exec_depend>mipi_cam</exec_depend>
   <exec_depend>hobot_usb_cam</exec_depend>

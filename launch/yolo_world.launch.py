@@ -40,7 +40,7 @@ def generate_launch_description():
         "yolo_world_dump_render_img", default_value=TextSubstitution(text="0")
     )
     model_file_name_launch_arg = DeclareLaunchArgument(
-        "yolo_world_model_file_name", default_value=TextSubstitution(text="config/yolo_world_v2_s.bin")
+        "yolo_world_model_file_name", default_value=TextSubstitution(text="config/DOSOD_M_80_without-nms_int16_nv12.bin")
     )
     vocabulary_file_name_launch_arg = DeclareLaunchArgument(
         "yolo_world_vocabulary_file_name", default_value=TextSubstitution(text="config/offline_vocabulary_embeddings.json")
@@ -69,8 +69,9 @@ def generate_launch_description():
                     get_package_share_directory('hobot_usb_cam'),
                     'launch/hobot_usb_cam.launch.py')),
             launch_arguments={
-                'usb_image_width': '640',
-                'usb_image_height': '480',
+                'usb_image_width': LaunchConfiguration('yolo_world_image_width'),
+                'usb_image_height': LaunchConfiguration('yolo_world_image_height'),
+                'usb_framerate': '30',
                 'usb_video_device': LaunchConfiguration('device')
             }.items()
         )
