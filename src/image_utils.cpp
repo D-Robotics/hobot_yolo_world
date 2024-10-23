@@ -72,7 +72,7 @@ int ImageUtils::Render(
                     3);
       std::string roi_type = target.type;
       if (!roi.type.empty()) {
-        roi_type = roi.type;
+        roi_type = roi.type + ": " + std::to_string(roi.confidence);
       }
       if (!roi_type.empty()) {
         cv::putText(mat,
@@ -118,10 +118,10 @@ int ImageUtils::Render(
     }
   }
 
-  std::string saving_path = "render_" + ai_msg->header.frame_id + "_" +
+  std::string saving_path = ai_msg->header.frame_id + "_" +
                             std::to_string(ai_msg->header.stamp.sec) + "_" +
-                            std::to_string(ai_msg->header.stamp.nanosec) +
-                            ".jpeg";
+                            std::to_string(ai_msg->header.stamp.nanosec) + "_render" + 
+                            ".jpg";
   RCLCPP_WARN(rclcpp::get_logger("ImageUtils"),
               "Draw result to file: %s",
               saving_path.c_str());

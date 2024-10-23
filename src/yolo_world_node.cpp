@@ -27,7 +27,6 @@
 
 #include "dnn_node/dnn_node.h"
 #include "include/image_utils.h"
-#include "include/post_process/yolo_world_output_parser.h"
 
 #include "include/yolo_world_node.h"
 
@@ -66,6 +65,19 @@ int CalTimeMsDuration(const builtin_interfaces::msg::Time &start,
          start.nanosec / 1000 / 1000;
 }
 
+// 报错Nv12原始图片
+int DownNV12Img(const char *in_img_data,
+                const int &in_img_height,
+                const int &in_img_width,
+                cv::Mat& mat) {
+  cv::Mat src(
+      in_img_height * 3 / 2, in_img_width, CV_8UC1, (void *)(in_img_data));
+  cv::Mat tmp;
+  cv::cvtColor(src, tmp, CV_YUV2BGR_NV12);
+  mat = tmp(cv::Rect(0, 0, in_img_width, in_img_height));
+  return 0;
+}
+
 // 使用hobotcv resize nv12格式图片，固定图片宽高比
 int ResizeNV12Img(const char *in_img_data,
                   const int &in_img_height,
@@ -78,6 +90,7 @@ int ResizeNV12Img(const char *in_img_data,
                   float &ratio) {
   cv::Mat src(
       in_img_height * 3 / 2, in_img_width, CV_8UC1, (void *)(in_img_data));
+
   float ratio_w =
       static_cast<float>(in_img_width) / static_cast<float>(scaled_img_width);
   float ratio_h =
@@ -125,6 +138,9 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   this->declare_parameter<float>("iou_threshold", iou_threshold_);
   this->declare_parameter<int>("nms_top_k", nms_top_k_);
   this->declare_parameter<int>("is_homography", is_homography_);
+  this->declare_parameter<int>("trigger_mode", trigger_mode_);
+  this->declare_parameter<int>("filterx", filterx_);
+  this->declare_parameter<int>("filtery", filtery_);
   this->declare_parameter<double>("y_offset", y_offset_);
   this->declare_parameter<std::string>("ai_msg_pub_topic_name",
                                        ai_msg_pub_topic_name_);
@@ -141,6 +157,9 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   this->get_parameter<float>("iou_threshold", iou_threshold_);
   this->get_parameter<int>("nms_top_k", nms_top_k_);
   this->get_parameter<int>("is_homography", is_homography_);
+  this->get_parameter<int>("trigger_mode", trigger_mode_);
+  this->get_parameter<int>("filterx", filterx_);
+  this->get_parameter<int>("filtery", filtery_);
   this->get_parameter<double>("y_offset", y_offset_);
   this->get_parameter<std::string>("ai_msg_pub_topic_name", ai_msg_pub_topic_name_);
   this->get_parameter<std::string>("ros_img_sub_topic_name", ros_img_sub_topic_name_);
@@ -158,6 +177,9 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
        << "\n iou_threshold: " << iou_threshold_
        << "\n nms_top_k: " << nms_top_k_
        << "\n is_homography: " << is_homography_
+       << "\n trigger_mode: " << trigger_mode_
+       << "\n filterx: " << filterx_
+       << "\n filtery: " << filtery_
        << "\n y_offset: " << y_offset_
        << "\n ai_msg_pub_topic_name: " << ai_msg_pub_topic_name_
        << "\n ros_img_sub_topic_name: " << ros_img_sub_topic_name_;
@@ -198,6 +220,13 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
 
   model->GetInputTensorProperties(tensor_properties, 0);
   is_nv12_ = tensor_properties.tensorType == HB_DNN_IMG_TYPE_NV12 ? true : false;
+
+  parser = std::make_shared<YoloOutputParser>();
+  parser->SetScoreThreshold(score_threshold_);
+  parser->SetIouThreshold(iou_threshold_);
+  parser->SetTopkThreshold(nms_top_k_);
+  parser->SetFilterX(filterx_);
+  parser->SetFilterY(filtery_);
 
   if (LoadVocabulary() != 0) {
     return;
@@ -414,6 +443,36 @@ std::shared_ptr<DNNTensor> YoloWorldNode::GetEmbeddingsTensor(
       });
 }
 
+bool YoloWorldNode::Trigger(const ai_msgs::msg::PerceptionTargets::UniquePtr &ai_msgs) {
+
+  if (trigger_mode_ == 100 && ai_msgs->targets.size() > 0) {
+    return true;
+  }
+  if (trigger_mode_ == 101 && ai_msgs->targets.size() == 0) {
+    return true;
+  }
+  if (trigger_mode_ == 102) {
+    return true;
+  }
+  for (auto &target : ai_msgs->targets) {
+    for (auto &roi : target.rois) {
+      switch(trigger_mode_) {
+        case 1: if (roi.type != "liquid stain") return true;
+        case 2: if (roi.type != "congee stain") return true;
+        case 3: if (roi.type != "milk stain") return true;
+        case 4: if (roi.type != "skein") return true;
+        case 5: if (roi.type != "solid stain") return true;
+        case 6: if (roi.type == "liquid stain") return true;
+        case 7: if (roi.type == "congee stain") return true;
+        case 8: if (roi.type == "milk stain") return true;
+        case 9: if (roi.type == "skein") return true;
+        case 10: if (roi.type == "solid stain") return true;
+      }
+    }
+  }
+  return false;
+}
+
 int YoloWorldNode::PostProcess(
     const std::shared_ptr<DnnNodeOutput> &node_output) {
   if (!rclcpp::ok()) {
@@ -441,11 +500,6 @@ int YoloWorldNode::PostProcess(
   }
 
   // 2. 模型后处理解析
-  auto parser = std::make_shared<YoloOutputParser>();
-  parser->SetScoreThreshold(score_threshold_);
-  parser->SetIouThreshold(iou_threshold_);
-  parser->SetTopkThreshold(nms_top_k_);
-
   auto det_result = std::make_shared<DnnParserResult>();
   parser->Parse(det_result, parser_output->output_tensors, class_names_);
 
@@ -493,11 +547,28 @@ int YoloWorldNode::PostProcess(
   pub_data->header.set__stamp(parser_output->msg_header->stamp);
   pub_data->header.set__frame_id(parser_output->msg_header->frame_id);
 
+  if (trigger_mode_ > 0) {    
+    trigger_sign_ = Trigger(pub_data);
+  }
+  if (pub_data == nullptr) {
+    return 0;
+  }
+
+  if (trigger_sign_) {
+    std::string raw_path = pub_data->header.frame_id + "_" +
+                std::to_string(pub_data->header.stamp.sec) + "_" +
+                std::to_string(pub_data->header.stamp.nanosec) +
+                ".jpg";
+    RCLCPP_INFO(rclcpp::get_logger("ImageUtils"),
+                "Draw raw image to file: %s",
+                raw_path.c_str());
+    cv::imwrite(raw_path, parser_output->mat);
+  }
   // 如果开启了渲染，本地渲染并存储图片
   if (dump_render_img_ && parser_output->tensor_image) {
     ImageUtils::Render(parser_output->tensor_image, pub_data, parser_output->resized_h, parser_output->resized_w);
   }
-  if (dump_render_img_ && parser_output->pyramid) {
+  if (dump_render_img_ && trigger_sign_ && parser_output->pyramid) {
     ImageUtils::Render(parser_output->pyramid, pub_data, parser_output->resized_h, parser_output->resized_w);
   }
 
@@ -780,6 +851,14 @@ void YoloWorldNode::RosImgProcess(
       pyramid = hobot::dnn_node::ImageProc::GetNV12PyramidFromBGRImg(
           cv_img->image, model_input_height_, model_input_width_);
     } else if ("nv12" == img_msg->encoding) {  // nv12格式使用hobotcv resize
+      if (trigger_mode_ > 0) {
+        cv::Mat mat;
+        DownNV12Img(reinterpret_cast<const char *>(img_msg->data.data()),
+                    img_msg->height,
+                    img_msg->width,
+                    mat);
+        dnn_output->mat = mat;
+      }
       if (img_msg->height != static_cast<uint32_t>(model_input_height_) ||
           img_msg->width != static_cast<uint32_t>(model_input_width_)) {
         // 需要做resize处理
@@ -949,6 +1028,14 @@ void YoloWorldNode::SharedMemImgProcess(
     std::shared_ptr<hobot::dnn_node::NV12PyramidInput> pyramid = nullptr;
     if ("nv12" ==
         std::string(reinterpret_cast<const char *>(img_msg->encoding.data()))) {
+      if (trigger_mode_ > 0) {
+        cv::Mat mat;
+        DownNV12Img(reinterpret_cast<const char *>(img_msg->data.data()),
+                    img_msg->height,
+                    img_msg->width,
+                    mat);
+        dnn_output->mat = mat;
+      }
       if (img_msg->height != static_cast<uint32_t>(model_input_height_) ||
           img_msg->width != static_cast<uint32_t>(model_input_width_)) {
         // 需要做resize处理

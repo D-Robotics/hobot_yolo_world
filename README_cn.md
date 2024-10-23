@@ -119,7 +119,7 @@ hbm_img_msgs为自定义的图片消息格式, 用于shared mem场景下的图�
 | image              | 本地图片地址                          | 否                   | config/00131.jpg     |                                                                         |
 | is_shared_mem_sub  | 使用shared mem通信方式订阅图片        | 否                   | 0                   |                                                                         |
 | score_threshold | 模型输出置信度阈值 | 否 | 0.05 | |
-| iou_threshold | nms iou阈值 | 否 | 0.45 | |
+| iou_threshold | nms iou阈值 | 否 | 0.6 | |
 | nms_top_k | 检测前k个框 | 否 | 50 | |
 | dump_render_img    | 是否进行渲染，0：否；1：是            | 否                   | 0                   |                                                                         |
 | ai_msg_pub_topic_name | 发布智能结果的topicname,用于web端展示 | 否                   | /hobot_yolo_world | |
@@ -233,7 +233,7 @@ log：
  dump_render_img: 0
  is_shared_mem_sub: 0
  score_threshold: 0.05
- iou_threshold: 0.45
+ iou_threshold: 0.6
  nms_top_k: 50
  texts: red bottle,trash bin
  ai_msg_pub_topic_name: /hobot_yolo_world

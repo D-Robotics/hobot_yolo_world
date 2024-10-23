@@ -37,6 +37,83 @@ int32_t YoloOutputParser::Parse(
   return 0;
 }
 
+int YoloOutputParser::CheckObject(std::vector<Detection> &input,
+                                int i,
+                                std::vector<float> areas,
+                                std::vector<Detection> &dets_defore,
+                                std::vector<float> areas_before){
+  for (size_t j = 0; j < dets_defore.size(); j++) {
+    // intersection area
+    float xx1 = std::max(input[i].bbox.xmin, dets_defore[j].bbox.xmin);
+    float yy1 = std::max(input[i].bbox.ymin, dets_defore[j].bbox.ymin);
+    float xx2 = std::min(input[i].bbox.xmax, dets_defore[j].bbox.xmax);
+    float yy2 = std::min(input[i].bbox.ymax, dets_defore[j].bbox.ymax);
+    if (xx2 > xx1 && yy2 > yy1) {
+      float area_intersection = (xx2 - xx1) * (yy2 - yy1);
+      float iou_ratio =
+          area_intersection / (areas_before[j] + areas[i] - area_intersection);
+      if (iou_ratio > iou_threshold_ && (input[i].class_name == dets_defore[j].class_name)) {
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+int32_t YoloOutputParser::Filter(std::vector<Detection> &input,
+         std::vector<Detection> &result) {
+
+  std::vector<float> areas;
+  areas.reserve(input.size());
+  for (auto& det: input) {
+    float width = det.bbox.xmax - det.bbox.xmin;
+    float height = det.bbox.ymax - det.bbox.ymin;
+    areas.push_back(width * height);
+  }
+
+  std::vector<float> areas_before1;
+  areas_before1.reserve(dets1_.size());
+  for (auto& det: dets1_) {
+    float width = det.bbox.xmax - det.bbox.xmin;
+    float height = det.bbox.ymax - det.bbox.ymin;
+    areas_before1.push_back(width * height);
+  }
+  std::vector<float> areas_before2;
+  areas_before2.reserve(dets2_.size());
+  for (auto& det: dets2_) {
+    float width = det.bbox.xmax - det.bbox.xmin;
+    float height = det.bbox.ymax - det.bbox.ymin;
+    areas_before2.push_back(width * height);
+  }
+  std::vector<float> areas_before3;
+  areas_before3.reserve(dets3_.size());
+  for (auto& det: dets3_) {
+    float width = det.bbox.xmax - det.bbox.xmin;
+    float height = det.bbox.ymax - det.bbox.ymin;
+    areas_before3.push_back(width * height);
+  }
+  std::vector<float> areas_before4;
+  areas_before4.reserve(dets4_.size());
+  for (auto& det: dets4_) {
+    float width = det.bbox.xmax - det.bbox.xmin;
+    float height = det.bbox.ymax - det.bbox.ymin;
+    areas_before4.push_back(width * height);
+  }
+
+  for (size_t i = 0; i < input.size(); i++) {
+    int count = 0;
+    count += CheckObject(input, i, areas, dets1_, areas_before1);
+    count += CheckObject(input, i, areas, dets2_, areas_before2);
+    count += CheckObject(input, i, areas, dets3_, areas_before3);
+    count += CheckObject(input, i, areas, dets4_, areas_before4);
+
+    if (count > (filterx_ - 1)) {
+      result.push_back(input[i]);
+    }
+  }
+  return 0;
+}
+
 int32_t YoloOutputParser::PostProcessWithoutDecode(
     std::vector<std::shared_ptr<DNNTensor>> &tensors,
     std::vector<std::string>& class_names,
@@ -51,19 +128,23 @@ int32_t YoloOutputParser::PostProcessWithoutDecode(
   
   int num_pred = 0;
   int num_class = 0;
+  int num_class_ailgned = 0;
   if (tensors[0]->properties.tensorLayout == HB_DNN_LAYOUT_NCHW) {
     num_pred = tensors[0]->properties.alignedShape.dimensionSize[1];
-    num_class = tensors[0]->properties.alignedShape.dimensionSize[2];
+    num_class_ailgned = tensors[0]->properties.alignedShape.dimensionSize[2];
+    num_class = tensors[0]->properties.validShape.dimensionSize[2];
   } else if (tensors[0]->properties.tensorLayout == HB_DNN_LAYOUT_NHWC) {
     num_pred = tensors[0]->properties.alignedShape.dimensionSize[3];
-    num_class = tensors[0]->properties.alignedShape.dimensionSize[1];
+    num_class_ailgned = tensors[0]->properties.alignedShape.dimensionSize[1];
+    num_class = tensors[0]->properties.validShape.dimensionSize[1];
   } else {
     num_pred = tensors[0]->properties.alignedShape.dimensionSize[2];
-    num_class = tensors[0]->properties.alignedShape.dimensionSize[3];
+    num_class_ailgned = tensors[0]->properties.alignedShape.dimensionSize[3];
+    num_class = tensors[0]->properties.validShape.dimensionSize[3];
   }
 
   for (int i = 0; i < num_pred; i++) {
-    int16_t *score_data = scores_data + i * num_class;
+    int16_t *score_data = scores_data + i * num_class_ailgned;
     int16_t *box_data = boxes_data + i * 8;
     float max_score = std::numeric_limits<float>::lowest(); // 初始最大值为最小可能值
     int max_index = -1;
@@ -87,7 +168,22 @@ int32_t YoloOutputParser::PostProcessWithoutDecode(
                     class_names[max_index].c_str()));
     }
   }
-  nms(dets, iou_threshold_, nms_top_k_, perception.det, true);
+  
+  switch (filtery_) {
+    default: nms(dets, iou_threshold_, nms_top_k_, perception.det, true); return 0;
+    case 5: swap(dets3_, dets4_);
+    case 4: swap(dets2_, dets3_);
+    case 3: swap(dets1_, dets2_);
+  }
+
+  std::vector<Detection> tmpdets;
+  nms(dets, iou_threshold_, nms_top_k_, tmpdets, true);
+
+  dets1_.clear();
+  for (auto &det: tmpdets) {
+    dets1_.push_back(det);
+  }
+  Filter(tmpdets, perception.det);
   return 0;
 }
 
@@ -152,14 +248,6 @@ int32_t YoloOutputParser::DecodeLayerNCHW(const int16_t* output_data,
       
       float max_score = std::numeric_limits<float>::lowest(); // 初始最大值为最小可能值
       int max_index = -1;
-      
-      // for (int k = 0; k < num_class - 1; k++) {
-      //   float score = Sigmoid(static_cast<float>(score_data[k * stride] * scale_data[0]));
-      //   if (score > max_score) {
-      //       max_score = score;
-      //       max_index = k;
-      //   }
-      // }
       for (int k = 0; k < num_class - 1; k++) {
         float data = score_data[k * stride];
         if (data > max_score) {
@@ -169,7 +257,6 @@ int32_t YoloOutputParser::DecodeLayerNCHW(const int16_t* output_data,
       }
 
       if (max_score > score_threshold_x) {
-      // if (max_score > score_threshold_) {
         max_score = Sigmoid(max_score * scale_data[0]);
 
         float x = (0.5 + static_cast<float>(w)) * stride_x;

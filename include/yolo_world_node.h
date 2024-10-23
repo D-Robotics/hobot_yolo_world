@@ -32,6 +32,8 @@
 #include "dnn_node/dnn_node_data.h"
 #include "dnn_node/util/output_parser/perception_common.h"
 
+#include "include/post_process/yolo_world_output_parser.h"
+
 #ifndef YOLO_WORLD_NODE_H_
 #define YOLO_WORLD_NODE_H_
 
@@ -55,6 +57,9 @@ struct YoloWorldOutput : public DnnNodeOutput {
 
   // 图片数据用于渲染
   std::shared_ptr<hobot::dnn_node::NV12PyramidInput> pyramid;
+
+  // 图片数据用于保存
+  cv::Mat mat;
 
   ai_msgs::msg::Perf perf_preprocess;
   int resized_w = 0; // 经过resize后图像的w
@@ -85,6 +90,10 @@ class YoloWorldNode : public DnnNode {
   // 本地回灌进行算法推理
   int FeedFromLocal();
 
+  bool Trigger(const ai_msgs::msg::PerceptionTargets::UniquePtr &ai_msgs);
+
+  int Filter(ai_msgs::msg::PerceptionTargets::UniquePtr &ai_msgs);
+
   static std::shared_ptr<DNNTensor> GetEmbeddingsTensor(
       std::vector<int>& indexs,
       const std::vector<std::vector<float>>& embeddings,
@@ -110,16 +119,19 @@ class YoloWorldNode : public DnnNode {
 
   // 用于解析的配置文件，以及解析后的数据
   std::string vocabulary_file_name_ = "config/offline_vocabulary_embeddings.json";
-  std::string model_file_name_ = "config/DOSOD_L_4_without_nms_int16_nv12_conv_int8_v7_1016.bin";
+  std::string model_file_name_ = "config/DOSOD_L_4_without_nms_int16_nv12_conv_int8_v7_1022.bin";
   
   std::string model_name_ = "";
 
   std::vector<std::string> class_names_;
 
-  float score_threshold_ = 0.22;
+  std::shared_ptr<YoloOutputParser> parser = nullptr;
+  float score_threshold_ = 0.6;
   float iou_threshold_ = 0.5;
   int nms_top_k_ = 50;
 
+  int filterx_ = 0;
+  int filtery_ = 0;
   bool is_nv12_ = true;
 
   // 存储字段名称和对应的值
@@ -135,6 +147,10 @@ class YoloWorldNode : public DnnNode {
 
   // 是否在本地渲染并保存渲染后的图片
   int dump_render_img_ = 0;
+
+  // 是否开启trigger功能
+  int trigger_mode_ = 0;
+  bool trigger_sign_ = false;
 
   // 使用shared mem通信方式订阅图片
   int is_shared_mem_sub_ = 0;

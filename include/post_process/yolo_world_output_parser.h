@@ -62,14 +62,31 @@ class YoloOutputParser {
   int32_t SetScoreThreshold(float score_threshold) {score_threshold_ = score_threshold; return 0;}
   int32_t SetIouThreshold(float iou_threshold) {iou_threshold_ = iou_threshold; return 0;}
   int32_t SetTopkThreshold(int nms_top_k) {nms_top_k_ = nms_top_k; return 0;}
+  int32_t SetFilterX(int filterx) {filterx_ = filterx; return 0;}
+  int32_t SetFilterY(int filtery) {filtery_ = filtery; return 0;}
 
  private:
+
+  int32_t Filter(std::vector<Detection> &input,
+                    std::vector<Detection> &result);
+  int32_t CheckObject(std::vector<Detection> &input,
+                      int i,
+                      std::vector<float> areas,
+                      std::vector<Detection> &dets_defore,
+                      std::vector<float> areas_before);
 
   float score_threshold_ = 0.22;
   float iou_threshold_ = 0.5;
   int nms_top_k_ = 100;
 
   int input_shape = 640;
+  int filterx_ = 0;
+  int filtery_ = 0;
+
+  std::vector<Detection> dets1_;
+  std::vector<Detection> dets2_;
+  std::vector<Detection> dets3_;
+  std::vector<Detection> dets4_;
 };
 
 #endif  // YOLO_WORLD_OUTPUT_PARSER_H_

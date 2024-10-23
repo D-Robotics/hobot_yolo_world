@@ -116,7 +116,7 @@ X86 Ubuntu version: ubuntu22.04
 | image               | Local image path                       | No                   | config/00131.jpg     |                                                                         |
 | is_shared_mem_sub   | Subscribe to images using shared memory communication method | No  | 0                   |                                                                         |                                                                   |
 | score_threshold | boxes confidence threshold | No | 0.05 | |
-| iou_threshold | nms iou threshold | No | 0.45 | |
+| iou_threshold | nms iou threshold | No | 0.6 | |
 | nms_top_k | Detect the first k boxes | No | 50 | |
 | dump_render_img     | Whether to render, 0: no; 1: yes       | No                   | 0                   |                                                                         |
 | ai_msg_pub_topic_name | Topic name for publishing intelligent results for web display | No                   | /hobot_yolo_world | |
@@ -224,7 +224,7 @@ Command executed: `ros2 run hobot_yolo_world hobot_yolo_world --ros-args -p feed
  dump_render_img: 0
  is_shared_mem_sub: 0
  score_threshold: 0.05
- iou_threshold: 0.45
+ iou_threshold: 0.6
  nms_top_k: 50
  texts: red bottle,trash bin
  ai_msg_pub_topic_name: /hobot_yolo_world

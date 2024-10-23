@@ -31,7 +31,7 @@ def generate_launch_description():
         "yolo_world_msg_pub_topic_name", default_value=TextSubstitution(text="hobot_yolo_world")
     )
     model_file_name_launch_arg = DeclareLaunchArgument(
-        "yolo_world_model_file_name", default_value=TextSubstitution(text="config/DOSOD_L_4_without_nms_int16_nv12_conv_int8_v7_1016.bin")
+        "yolo_world_model_file_name", default_value=TextSubstitution(text="config/DOSOD_L_4_without_nms_int16_nv12_conv_int8_v7_1022.bin")
     )
     vocabulary_file_name_launch_arg = DeclareLaunchArgument(
         "yolo_world_vocabulary_file_name", default_value=TextSubstitution(text="config/offline_vocabulary_embeddings.json")
@@ -43,9 +43,17 @@ def generate_launch_description():
         "ws_port_interaction", default_value=TextSubstitution(text="8081")
     )
     score_threshold_launch_arg = DeclareLaunchArgument(
-        "yolo_world_score_threshold", default_value=TextSubstitution(text="0.22")
+        "yolo_world_score_threshold", default_value=TextSubstitution(text="0.6")
     )
-
+    trigger_mode_launch_arg = DeclareLaunchArgument(
+        "yolo_world_trigger_mode", default_value=TextSubstitution(text="0")
+    )
+    filterx_launch_arg = DeclareLaunchArgument(
+        "yolo_world_filterx", default_value=TextSubstitution(text="0")
+    )
+    filtery_launch_arg = DeclareLaunchArgument(
+        "yolo_world_filtery", default_value=TextSubstitution(text="0")
+    )
     # jpeg->nv12
     nv12_codec_node = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -100,6 +108,12 @@ def generate_launch_description():
                 "yolo_world_model_file_name")},
             {"vocabulary_file_name": LaunchConfiguration(
                 "yolo_world_vocabulary_file_name")},
+            {"trigger_mode": LaunchConfiguration(
+                "yolo_world_trigger_mode")},
+            {"filterx": LaunchConfiguration(
+                "yolo_world_filterx")},
+            {"filtery": LaunchConfiguration(
+                "yolo_world_filtery")},
             {"port_interaction": LaunchConfiguration("ws_port_interaction")}
         ],
         arguments=['--ros-args', '--log-level', 'warn']
@@ -113,6 +127,9 @@ def generate_launch_description():
         model_file_name_launch_arg,
         vocabulary_file_name_launch_arg,
         score_threshold_launch_arg,
+        trigger_mode_launch_arg,
+        filterx_launch_arg,
+        filtery_launch_arg,
         # 图片编解码&发布pkg
         nv12_codec_node,
         # 启动yoloworld pkg
