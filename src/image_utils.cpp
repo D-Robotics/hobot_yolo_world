@@ -118,8 +118,7 @@ int ImageUtils::Render(
     }
   }
 
-  std::string saving_path = ai_msg->header.frame_id + "_" +
-                            std::to_string(ai_msg->header.stamp.sec) + "_" +
+  std::string saving_path = std::to_string(ai_msg->header.stamp.sec) + "_" +
                             std::to_string(ai_msg->header.stamp.nanosec) + "_render" + 
                             ".jpg";
   RCLCPP_WARN(rclcpp::get_logger("ImageUtils"),

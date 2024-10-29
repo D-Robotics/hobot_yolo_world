@@ -40,7 +40,7 @@ def generate_launch_description():
         "yolo_world_dump_render_img", default_value=TextSubstitution(text="0")
     )
     model_file_name_launch_arg = DeclareLaunchArgument(
-        "yolo_world_model_file_name", default_value=TextSubstitution(text="config/DOSOD_L_4_without_nms_int16_nv12_conv_int8_v7_1022.bin")
+        "yolo_world_model_file_name", default_value=TextSubstitution(text="config/DOSOD_L_without_nms_nv12_v3.bin")
     )
     vocabulary_file_name_launch_arg = DeclareLaunchArgument(
         "yolo_world_vocabulary_file_name", default_value=TextSubstitution(text="config/offline_vocabulary_embeddings.json")

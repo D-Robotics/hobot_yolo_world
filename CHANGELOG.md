@@ -1,5 +1,10 @@
 # Changelog for package hobot_yolo_world
 
+tros_0.5.2 (2024-10-29)
+------------------
+1. 新增Trigger模式。
+2. 更新DOSOD模型水渍检测。
+
 tros_0.5.1 (2024-10-18)
 ------------------
 1. 新增DOSOD模型水渍检测。

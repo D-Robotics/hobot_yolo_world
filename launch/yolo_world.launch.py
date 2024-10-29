@@ -39,8 +39,11 @@ def generate_launch_description():
     dump_render_launch_arg = DeclareLaunchArgument(
         "yolo_world_dump_render_img", default_value=TextSubstitution(text="0")
     )
+    dump_raw_launch_arg = DeclareLaunchArgument(
+        "yolo_world_dump_render_img", default_value=TextSubstitution(text="0")
+    )
     model_file_name_launch_arg = DeclareLaunchArgument(
-        "yolo_world_model_file_name", default_value=TextSubstitution(text="config/DOSOD_L_4_without_nms_int16_nv12_conv_int8_v7_1022.bin")
+        "yolo_world_model_file_name", default_value=TextSubstitution(text="config/DOSOD_L_without_nms_nv12_v3.bin")
     )
     vocabulary_file_name_launch_arg = DeclareLaunchArgument(
         "yolo_world_vocabulary_file_name", default_value=TextSubstitution(text="config/offline_vocabulary_embeddings.json")
@@ -105,7 +108,8 @@ def generate_launch_description():
                 'publish_image_format': 'jpg',
                 'publish_is_shared_mem': 'True',
                 'publish_message_topic_name': '/hbmem_img',
-                'publish_fps': '1',
+                'publish_fps': '5',
+                'publish_is_loop': 'True',
                 'publish_output_image_w': LaunchConfiguration('yolo_world_image_width'),
                 'publish_output_image_h': LaunchConfiguration('yolo_world_image_height')
             }.items()
@@ -194,6 +198,8 @@ def generate_launch_description():
         parameters=[
             {"feed_type": 1},
             {"is_shared_mem_sub": 1},
+            {"dump_raw_img": LaunchConfiguration(
+                "yolo_world_dump_raw_img")},
             {"dump_render_img": LaunchConfiguration(
                 "yolo_world_dump_render_img")},
             {"msg_pub_topic_name": LaunchConfiguration(
@@ -228,6 +234,7 @@ def generate_launch_description():
             image_height_launch_arg,
             msg_pub_topic_name_launch_arg,
             dump_render_launch_arg,
+            dump_raw_launch_arg,
             model_file_name_launch_arg,
             vocabulary_file_name_launch_arg,
             score_threshold_launch_arg,
@@ -252,6 +259,7 @@ def generate_launch_description():
             image_height_launch_arg,
             msg_pub_topic_name_launch_arg,
             dump_render_launch_arg,
+            dump_raw_launch_arg,
             model_file_name_launch_arg,
             vocabulary_file_name_launch_arg,
             score_threshold_launch_arg,

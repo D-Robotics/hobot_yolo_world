@@ -132,6 +132,7 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   this->declare_parameter<std::string>("vocabulary_file_name", vocabulary_file_name_);
   this->declare_parameter<int>("feed_type", feed_type_);
   this->declare_parameter<std::string>("image", image_file_);
+  this->declare_parameter<int>("dump_raw_img", dump_raw_img_);
   this->declare_parameter<int>("dump_render_img", dump_render_img_);
   this->declare_parameter<int>("is_shared_mem_sub", is_shared_mem_sub_);
   this->declare_parameter<float>("score_threshold", score_threshold_);
@@ -151,6 +152,7 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   this->get_parameter<std::string>("vocabulary_file_name", vocabulary_file_name_);
   this->get_parameter<int>("feed_type", feed_type_);
   this->get_parameter<std::string>("image", image_file_);
+  this->get_parameter<int>("dump_raw_img", dump_raw_img_);
   this->get_parameter<int>("dump_render_img", dump_render_img_);
   this->get_parameter<int>("is_shared_mem_sub", is_shared_mem_sub_);
   this->get_parameter<float>("score_threshold", score_threshold_);
@@ -171,6 +173,7 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
        << "\n vocabulary_file_name: " << vocabulary_file_name_
        << "\n feed_type(0:local, 1:sub): " << feed_type_
        << "\n image: " << image_file_
+       << "\n dump_raw_img: " << dump_raw_img_
        << "\n dump_render_img: " << dump_render_img_
        << "\n is_shared_mem_sub: " << is_shared_mem_sub_
        << "\n score_threshold: " << score_threshold_
@@ -451,7 +454,7 @@ bool YoloWorldNode::Trigger(const ai_msgs::msg::PerceptionTargets::UniquePtr &ai
   if (trigger_mode_ == 101 && ai_msgs->targets.size() == 0) {
     return true;
   }
-  if (trigger_mode_ == 102) {
+  if (trigger_mode_ == 0) {
     return true;
   }
   for (auto &target : ai_msgs->targets) {
@@ -547,17 +550,14 @@ int YoloWorldNode::PostProcess(
   pub_data->header.set__stamp(parser_output->msg_header->stamp);
   pub_data->header.set__frame_id(parser_output->msg_header->frame_id);
 
-  if (trigger_mode_ > 0) {    
-    trigger_sign_ = Trigger(pub_data);
-  }
+  bool trigger_sign = Trigger(pub_data);
   if (pub_data == nullptr) {
     return 0;
   }
 
-  if (trigger_sign_) {
-    std::string raw_path = pub_data->header.frame_id + "_" +
-                std::to_string(pub_data->header.stamp.sec) + "_" +
-                std::to_string(pub_data->header.stamp.nanosec) +
+  if (dump_raw_img_ && trigger_sign) {
+    std::string raw_path = std::to_string(pub_data->header.stamp.sec) + "_" +
+                std::to_string(pub_data->header.stamp.nanosec) + "_raw"
                 ".jpg";
     RCLCPP_INFO(rclcpp::get_logger("ImageUtils"),
                 "Draw raw image to file: %s",
@@ -568,7 +568,7 @@ int YoloWorldNode::PostProcess(
   if (dump_render_img_ && parser_output->tensor_image) {
     ImageUtils::Render(parser_output->tensor_image, pub_data, parser_output->resized_h, parser_output->resized_w);
   }
-  if (dump_render_img_ && trigger_sign_ && parser_output->pyramid) {
+  if (dump_render_img_ && trigger_sign && parser_output->pyramid) {
     ImageUtils::Render(parser_output->pyramid, pub_data, parser_output->resized_h, parser_output->resized_w);
   }
 

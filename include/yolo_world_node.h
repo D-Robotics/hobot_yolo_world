@@ -119,7 +119,7 @@ class YoloWorldNode : public DnnNode {
 
   // 用于解析的配置文件，以及解析后的数据
   std::string vocabulary_file_name_ = "config/offline_vocabulary_embeddings.json";
-  std::string model_file_name_ = "config/DOSOD_L_4_without_nms_int16_nv12_conv_int8_v7_1022.bin";
+  std::string model_file_name_ = "config/DOSOD_L_without_nms_nv12_v3.bin";
   
   std::string model_name_ = "";
 
@@ -145,12 +145,14 @@ class YoloWorldNode : public DnnNode {
   // 用于预测的图片来源，0：本地图片；1：订阅到的image msg
   int feed_type_ = 0;
 
+  // 是否保存的原始图片
+  int dump_raw_img_ = 0;
+
   // 是否在本地渲染并保存渲染后的图片
   int dump_render_img_ = 0;
 
   // 是否开启trigger功能
   int trigger_mode_ = 0;
-  bool trigger_sign_ = false;
 
   // 使用shared mem通信方式订阅图片
   int is_shared_mem_sub_ = 0;
