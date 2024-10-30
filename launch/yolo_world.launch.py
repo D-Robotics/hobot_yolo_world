@@ -108,7 +108,7 @@ def generate_launch_description():
                 'publish_image_format': 'jpg',
                 'publish_is_shared_mem': 'True',
                 'publish_message_topic_name': '/hbmem_img',
-                'publish_fps': '5',
+                'publish_fps': '10',
                 'publish_is_loop': 'True',
                 'publish_output_image_w': LaunchConfiguration('yolo_world_image_width'),
                 'publish_output_image_h': LaunchConfiguration('yolo_world_image_height')
@@ -214,6 +214,7 @@ def generate_launch_description():
                 "yolo_world_filterx")},
             {"filtery": LaunchConfiguration(
                 "yolo_world_filtery")},
+            {"class_mode": 0},
             {"score_threshold": LaunchConfiguration(
                 "yolo_world_score_threshold")}
         ],

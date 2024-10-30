@@ -161,11 +161,19 @@ int32_t YoloOutputParser::PostProcessWithoutDecode(
       float xmax = static_cast<float>(box_data[2]) * tensors[1]->properties.scale.scaleData[0];
       float ymax = static_cast<float>(box_data[3]) * tensors[1]->properties.scale.scaleData[0];
       Bbox bbox(xmin, ymin, xmax, ymax);
-      dets.push_back(
-          Detection(static_cast<int>(max_index),
-                    max_score,
-                    bbox,
-                    class_names[max_index].c_str()));
+      if (class_mode_ == 1 && class_names[max_index] != "skein") {
+        dets.push_back(
+            Detection(static_cast<int>(max_index),
+                      max_score,
+                      bbox,
+                      class_names[max_index].c_str()));
+      } else if (class_mode_ == 0) {
+        dets.push_back(
+            Detection(static_cast<int>(max_index),
+                      max_score,
+                      bbox,
+                      class_names[max_index].c_str()));
+      }
     }
   }
   

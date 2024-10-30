@@ -1,5 +1,10 @@
 # Changelog for package hobot_yolo_world
 
+tros_0.5.3 (2024-10-30)
+------------------
+1. 修复Trigger模式1-10失效的问题。
+2. 新增class_mode
+
 tros_0.5.2 (2024-10-29)
 ------------------
 1. 新增Trigger模式。

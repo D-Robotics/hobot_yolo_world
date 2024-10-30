@@ -23,7 +23,6 @@
 #include "dnn_node/util/output_parser/perception_common.h"
 #include "dnn_node/util/output_parser/detection/nms.h"
 
-
 using hobot::dnn_node::output_parser::Bbox;
 using hobot::dnn_node::output_parser::Detection;
 using hobot::dnn_node::output_parser::DnnParserResult;
@@ -64,6 +63,7 @@ class YoloOutputParser {
   int32_t SetTopkThreshold(int nms_top_k) {nms_top_k_ = nms_top_k; return 0;}
   int32_t SetFilterX(int filterx) {filterx_ = filterx; return 0;}
   int32_t SetFilterY(int filtery) {filtery_ = filtery; return 0;}
+  int32_t SetClassMode(int class_mode) {class_mode_ = class_mode; return 0;}
 
  private:
 
@@ -82,6 +82,7 @@ class YoloOutputParser {
   int input_shape = 640;
   int filterx_ = 0;
   int filtery_ = 0;
+  int class_mode_ = 0;
 
   std::vector<Detection> dets1_;
   std::vector<Detection> dets2_;

@@ -18,9 +18,6 @@
 #include <vector>
 
 #include "hobot_cv/hobotcv_imgproc.h"
-#include "rapidjson/document.h"
-#include "rapidjson/istreamwrapper.h"
-#include "rapidjson/writer.h"
 #include "rclcpp/rclcpp.hpp"
 #include <cv_bridge/cv_bridge.h>
 #include <unistd.h>
@@ -142,6 +139,7 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   this->declare_parameter<int>("trigger_mode", trigger_mode_);
   this->declare_parameter<int>("filterx", filterx_);
   this->declare_parameter<int>("filtery", filtery_);
+  this->declare_parameter<int>("class_mode", class_mode_);
   this->declare_parameter<double>("y_offset", y_offset_);
   this->declare_parameter<std::string>("ai_msg_pub_topic_name",
                                        ai_msg_pub_topic_name_);
@@ -162,6 +160,7 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   this->get_parameter<int>("trigger_mode", trigger_mode_);
   this->get_parameter<int>("filterx", filterx_);
   this->get_parameter<int>("filtery", filtery_);
+  this->get_parameter<int>("class_mode", class_mode_);
   this->get_parameter<double>("y_offset", y_offset_);
   this->get_parameter<std::string>("ai_msg_pub_topic_name", ai_msg_pub_topic_name_);
   this->get_parameter<std::string>("ros_img_sub_topic_name", ros_img_sub_topic_name_);
@@ -183,6 +182,7 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
        << "\n trigger_mode: " << trigger_mode_
        << "\n filterx: " << filterx_
        << "\n filtery: " << filtery_
+       << "\n class_mode: " << class_mode_
        << "\n y_offset: " << y_offset_
        << "\n ai_msg_pub_topic_name: " << ai_msg_pub_topic_name_
        << "\n ros_img_sub_topic_name: " << ros_img_sub_topic_name_;
@@ -230,6 +230,7 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   parser->SetTopkThreshold(nms_top_k_);
   parser->SetFilterX(filterx_);
   parser->SetFilterY(filtery_);
+  parser->SetClassMode(class_mode_);
 
   if (LoadVocabulary() != 0) {
     return;
@@ -457,19 +458,23 @@ bool YoloWorldNode::Trigger(const ai_msgs::msg::PerceptionTargets::UniquePtr &ai
   if (trigger_mode_ == 0) {
     return true;
   }
+  if (trigger_mode_ == 102) {
+    return true;
+  }
   for (auto &target : ai_msgs->targets) {
     for (auto &roi : target.rois) {
       switch(trigger_mode_) {
-        case 1: if (roi.type != "liquid stain") return true;
-        case 2: if (roi.type != "congee stain") return true;
-        case 3: if (roi.type != "milk stain") return true;
-        case 4: if (roi.type != "skein") return true;
-        case 5: if (roi.type != "solid stain") return true;
-        case 6: if (roi.type == "liquid stain") return true;
-        case 7: if (roi.type == "congee stain") return true;
-        case 8: if (roi.type == "milk stain") return true;
-        case 9: if (roi.type == "skein") return true;
-        case 10: if (roi.type == "solid stain") return true;
+        case 1: if (roi.type != class_names_[0]) return true; break;
+        case 2: if (roi.type != class_names_[1]) return true; break;
+        case 3: if (roi.type != class_names_[2]) return true; break;
+        case 4: if (roi.type != class_names_[3]) return true; break;
+        case 5: if (roi.type != class_names_[4]) return true; break;
+        case 6: if (roi.type == class_names_[0]) return true; break;
+        case 7: if (roi.type == class_names_[1]) return true; break;
+        case 8: if (roi.type == class_names_[2]) return true; break;
+        case 9: if (roi.type == class_names_[3]) return true; break;
+        case 10: if (roi.type == class_names_[4]) return true; break;
+        default: return false;
       }
     }
   }
@@ -851,7 +856,7 @@ void YoloWorldNode::RosImgProcess(
       pyramid = hobot::dnn_node::ImageProc::GetNV12PyramidFromBGRImg(
           cv_img->image, model_input_height_, model_input_width_);
     } else if ("nv12" == img_msg->encoding) {  // nv12格式使用hobotcv resize
-      if (trigger_mode_ > 0) {
+      if (dump_raw_img_ == 1) {
         cv::Mat mat;
         DownNV12Img(reinterpret_cast<const char *>(img_msg->data.data()),
                     img_msg->height,
@@ -1028,7 +1033,7 @@ void YoloWorldNode::SharedMemImgProcess(
     std::shared_ptr<hobot::dnn_node::NV12PyramidInput> pyramid = nullptr;
     if ("nv12" ==
         std::string(reinterpret_cast<const char *>(img_msg->encoding.data()))) {
-      if (trigger_mode_ > 0) {
+      if (dump_raw_img_ == 1) {
         cv::Mat mat;
         DownNV12Img(reinterpret_cast<const char *>(img_msg->data.data()),
                     img_msg->height,

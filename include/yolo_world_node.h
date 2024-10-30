@@ -19,6 +19,9 @@
 #include "cv_bridge/cv_bridge.h"
 #include "dnn_node/dnn_node.h"
 #include "dnn_node/util/image_proc.h"
+#include "rapidjson/document.h"
+#include "rapidjson/istreamwrapper.h"
+#include "rapidjson/writer.h"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "std_msgs/msg/string.hpp"
@@ -134,16 +137,15 @@ class YoloWorldNode : public DnnNode {
   int filtery_ = 0;
   bool is_nv12_ = true;
 
-  // 存储字段名称和对应的值
-  std::vector<std::string> indice_;
-  std::vector<std::vector<float>> embeddings_;
-
   // 加载模型后，查询出模型输入分辨率
   int model_input_width_ = 640;
   int model_input_height_ = 640;
 
   // 用于预测的图片来源，0：本地图片；1：订阅到的image msg
   int feed_type_ = 0;
+
+  // 类别模式
+  int class_mode_ = 0;
 
   // 是否保存的原始图片
   int dump_raw_img_ = 0;
