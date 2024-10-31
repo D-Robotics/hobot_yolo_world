@@ -27,6 +27,19 @@
 
 #include "include/yolo_world_node.h"
 
+std::string Convert2XML(const std::string& filePath) {
+    // 找到最后一个斜杠位置，获取文件名
+    size_t lastSlash = filePath.find_last_of('/');
+    std::string fileName = filePath.substr(lastSlash + 1);
+    
+    // 替换后缀名
+    size_t dotPos = fileName.find_last_of('.');
+    if (dotPos != std::string::npos) {
+        fileName.replace(dotPos, fileName.length() - dotPos, ".xml");
+    }
+    return fileName;
+}
+
 // 3x3矩阵乘以3x1向量的函数
 std::vector<double> matrixMultiply(const std::vector<double>& H, const std::vector<double>& x1) {
     std::vector<double> x2 = {0, 0, 0};
@@ -129,8 +142,12 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   this->declare_parameter<std::string>("vocabulary_file_name", vocabulary_file_name_);
   this->declare_parameter<int>("feed_type", feed_type_);
   this->declare_parameter<std::string>("image", image_file_);
+  this->declare_parameter<int>("dump_ai_result", dump_ai_result_);
   this->declare_parameter<int>("dump_raw_img", dump_raw_img_);
   this->declare_parameter<int>("dump_render_img", dump_render_img_);
+  this->declare_parameter<std::string>("dump_ai_path", dump_ai_path_);
+  this->declare_parameter<std::string>("dump_raw_path", dump_raw_path_);
+  this->declare_parameter<std::string>("dump_render_path", dump_render_path_);
   this->declare_parameter<int>("is_shared_mem_sub", is_shared_mem_sub_);
   this->declare_parameter<float>("score_threshold", score_threshold_);
   this->declare_parameter<float>("iou_threshold", iou_threshold_);
@@ -150,8 +167,12 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   this->get_parameter<std::string>("vocabulary_file_name", vocabulary_file_name_);
   this->get_parameter<int>("feed_type", feed_type_);
   this->get_parameter<std::string>("image", image_file_);
+  this->get_parameter<int>("dump_ai_result", dump_ai_result_);
   this->get_parameter<int>("dump_raw_img", dump_raw_img_);
   this->get_parameter<int>("dump_render_img", dump_render_img_);
+  this->get_parameter<std::string>("dump_ai_path", dump_ai_path_);
+  this->get_parameter<std::string>("dump_raw_path", dump_raw_path_);
+  this->get_parameter<std::string>("dump_render_path", dump_render_path_);
   this->get_parameter<int>("is_shared_mem_sub", is_shared_mem_sub_);
   this->get_parameter<float>("score_threshold", score_threshold_);
   this->get_parameter<float>("iou_threshold", iou_threshold_);
@@ -172,8 +193,12 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
        << "\n vocabulary_file_name: " << vocabulary_file_name_
        << "\n feed_type(0:local, 1:sub): " << feed_type_
        << "\n image: " << image_file_
+       << "\n dump_ai_result: " << dump_ai_result_
        << "\n dump_raw_img: " << dump_raw_img_
        << "\n dump_render_img: " << dump_render_img_
+       << "\n dump_ai_path: " << dump_ai_path_
+       << "\n dump_raw_path: " << dump_raw_path_
+       << "\n dump_render_path: " << dump_render_path_
        << "\n is_shared_mem_sub: " << is_shared_mem_sub_
        << "\n score_threshold: " << score_threshold_
        << "\n iou_threshold: " << iou_threshold_
@@ -237,6 +262,18 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   }
   if (is_homography_ == 1 && LoadHomography() != 0) {
     return;
+  }
+  if (dump_ai_result_ == 1 && dump_ai_path_ != ".") {
+    std::string command = "mkdir -p " + dump_ai_path_;
+    system(command.c_str());
+  }
+  if (dump_raw_img_ == 1 && dump_raw_path_ != ".") {
+    std::string command = "mkdir -p " + dump_raw_path_;
+    system(command.c_str());
+  }
+  if (dump_render_img_ == 1 && dump_render_path_ != ".") {
+    std::string command = "mkdir -p " + dump_render_path_;
+    system(command.c_str());
   }
 
   // 创建AI消息的发布者
@@ -564,6 +601,9 @@ int YoloWorldNode::PostProcess(
     std::string raw_path = std::to_string(pub_data->header.stamp.sec) + "_" +
                 std::to_string(pub_data->header.stamp.nanosec) + "_raw"
                 ".jpg";
+    if (dump_raw_path_ != ".") {
+      raw_path = dump_raw_path_ + "/" + raw_path;
+    }
     RCLCPP_INFO(rclcpp::get_logger("ImageUtils"),
                 "Draw raw image to file: %s",
                 raw_path.c_str());
@@ -574,7 +614,7 @@ int YoloWorldNode::PostProcess(
     ImageUtils::Render(parser_output->tensor_image, pub_data, parser_output->resized_h, parser_output->resized_w);
   }
   if (dump_render_img_ && trigger_sign && parser_output->pyramid) {
-    ImageUtils::Render(parser_output->pyramid, pub_data, parser_output->resized_h, parser_output->resized_w);
+    ImageUtils::Render(parser_output->pyramid, pub_data, parser_output->resized_h, parser_output->resized_w, dump_render_path_);
   }
 
   if (parser_output->ratio != 1.0) {
@@ -586,6 +626,30 @@ int YoloWorldNode::PostProcess(
         roi.rect.width *= parser_output->ratio;
         roi.rect.height *= parser_output->ratio;
       }
+    }
+  }
+
+  if (dump_ai_result_) {
+    if (parser_output->ratio != 1.0) {
+      for (auto &rect : det_result->perception.det) {
+        rect.bbox.xmin *= parser_output->ratio;
+        rect.bbox.ymin *= parser_output->ratio;
+        rect.bbox.xmax *= parser_output->ratio;
+        rect.bbox.ymax *= parser_output->ratio;
+      }
+    }
+    std::string file_name = Convert2XML(parser_output->msg_header->frame_id);
+    if (dump_ai_path_ != ".") {
+      file_name = dump_ai_path_ + "/" + file_name;
+    }
+    int ret = parser->WriteVOCXML(file_name, parser_output->msg_header->frame_id, parser_output->img_w, parser_output->img_h, 3, det_result->perception.det);
+    if (ret == 0) {
+      RCLCPP_WARN(rclcpp::get_logger("ImageUtils"),
+            "Dump Ai result to file: %s",
+            file_name.c_str());
+    } else {
+      RCLCPP_ERROR(
+        rclcpp::get_logger("hobot_yolo_world"), "Write Ai Result %s Failed!", file_name.c_str());
     }
   }
 

@@ -22,6 +22,9 @@
 #include "dnn_node/dnn_node_data.h"
 #include "dnn_node/util/output_parser/perception_common.h"
 #include "dnn_node/util/output_parser/detection/nms.h"
+#include "tinyxml2.h"
+
+using namespace tinyxml2;
 
 using hobot::dnn_node::output_parser::Bbox;
 using hobot::dnn_node::output_parser::Detection;
@@ -64,6 +67,8 @@ class YoloOutputParser {
   int32_t SetFilterX(int filterx) {filterx_ = filterx; return 0;}
   int32_t SetFilterY(int filtery) {filtery_ = filtery; return 0;}
   int32_t SetClassMode(int class_mode) {class_mode_ = class_mode; return 0;}
+
+  int32_t WriteVOCXML(const std::string &filename, const std::string &imagePath, int imageWidth, int imageHeight, int depth, const std::vector<Detection> &detections);
 
  private:
 

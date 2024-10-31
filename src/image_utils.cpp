@@ -27,7 +27,8 @@ int ImageUtils::Render(
     const std::shared_ptr<hobot::dnn_node::NV12PyramidInput> &pyramid,
     const ai_msgs::msg::PerceptionTargets::UniquePtr &ai_msg,
     const int img_h,
-    const int img_w) {
+    const int img_w,
+    const std::string folder) {
   if (!pyramid || !ai_msg) return -1;
 
   char *y_img = reinterpret_cast<char *>(pyramid->y_vir_addr);
@@ -121,6 +122,9 @@ int ImageUtils::Render(
   std::string saving_path = std::to_string(ai_msg->header.stamp.sec) + "_" +
                             std::to_string(ai_msg->header.stamp.nanosec) + "_render" + 
                             ".jpg";
+  if (folder != ".") {
+    saving_path = folder + "/" + saving_path;
+  }
   RCLCPP_WARN(rclcpp::get_logger("ImageUtils"),
               "Draw result to file: %s",
               saving_path.c_str());

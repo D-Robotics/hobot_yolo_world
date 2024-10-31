@@ -153,6 +153,13 @@ class YoloWorldNode : public DnnNode {
   // 是否在本地渲染并保存渲染后的图片
   int dump_render_img_ = 0;
 
+  // 是否保存ai结果
+  int dump_ai_result_ = 0;
+
+  std::string dump_ai_path_ = ".";
+  std::string dump_raw_path_ = ".";
+  std::string dump_render_path_ = ".";
+
   // 是否开启trigger功能
   int trigger_mode_ = 0;
 

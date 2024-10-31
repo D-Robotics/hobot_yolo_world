@@ -76,7 +76,8 @@ class ImageUtils {
     const std::shared_ptr<hobot::dnn_node::NV12PyramidInput> &pyramid,
     const ai_msgs::msg::PerceptionTargets::UniquePtr &ai_msg,
     const int img_h,
-    const int img_w);
+    const int img_w,
+    const std::string folder);
 };
 
 #endif  // IMAGE_UTILS_H

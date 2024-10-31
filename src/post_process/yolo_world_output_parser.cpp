@@ -286,3 +286,84 @@ int32_t YoloOutputParser::DecodeLayerNCHW(const int16_t* output_data,
 
   return 0;
 }
+
+
+// 将Detection写入标准VOC格式XML
+int YoloOutputParser::WriteVOCXML(const std::string &filename, const std::string &imagePath, int imageWidth, int imageHeight, int depth, const std::vector<Detection> &detections) {
+  XMLDocument doc;
+
+  // 根节点annotation
+  XMLElement *annotation = doc.NewElement("annotation");
+  doc.InsertFirstChild(annotation);
+
+  // folder
+  XMLElement *folder = doc.NewElement("folder");
+  folder->SetText("VOCImages");
+  annotation->InsertEndChild(folder);
+
+  // filename
+  XMLElement *filenameElem = doc.NewElement("filename");
+  filenameElem->SetText(imagePath.c_str());
+  annotation->InsertEndChild(filenameElem);
+
+  // size节点
+  XMLElement *sizeElem = doc.NewElement("size");
+  XMLElement *widthElem = doc.NewElement("width");
+  widthElem->SetText(imageWidth);
+  XMLElement *heightElem = doc.NewElement("height");
+  heightElem->SetText(imageHeight);
+  XMLElement *depthElem = doc.NewElement("depth");
+  depthElem->SetText(depth);
+  sizeElem->InsertEndChild(widthElem);
+  sizeElem->InsertEndChild(heightElem);
+  sizeElem->InsertEndChild(depthElem);
+  annotation->InsertEndChild(sizeElem);
+
+  // 添加object节点
+  for (const auto &det : detections) {
+      XMLElement *objectElem = doc.NewElement("object");
+
+      XMLElement *nameElem = doc.NewElement("name");
+      nameElem->SetText(det.class_name);
+      objectElem->InsertEndChild(nameElem);
+
+      XMLElement *poseElem = doc.NewElement("pose");
+      poseElem->SetText("Unspecified");
+      objectElem->InsertEndChild(poseElem);
+
+      XMLElement *truncatedElem = doc.NewElement("truncated");
+      truncatedElem->SetText(0);
+      objectElem->InsertEndChild(truncatedElem);
+
+      XMLElement *difficultElem = doc.NewElement("difficult");
+      difficultElem->SetText(0);
+      objectElem->InsertEndChild(difficultElem);
+
+      // bndbox节点
+      XMLElement *bndboxElem = doc.NewElement("bndbox");
+
+      XMLElement *xminElem = doc.NewElement("xmin");
+      xminElem->SetText(det.bbox.xmin);
+      XMLElement *yminElem = doc.NewElement("ymin");
+      yminElem->SetText(det.bbox.ymin);
+      XMLElement *xmaxElem = doc.NewElement("xmax");
+      xmaxElem->SetText(det.bbox.xmax);
+      XMLElement *ymaxElem = doc.NewElement("ymax");
+      ymaxElem->SetText(det.bbox.ymax);
+
+      bndboxElem->InsertEndChild(xminElem);
+      bndboxElem->InsertEndChild(yminElem);
+      bndboxElem->InsertEndChild(xmaxElem);
+      bndboxElem->InsertEndChild(ymaxElem);
+      objectElem->InsertEndChild(bndboxElem);
+
+      annotation->InsertEndChild(objectElem);
+  }
+
+  // 保存文件
+  XMLError eResult = doc.SaveFile(filename.c_str());
+  if (eResult != XML_SUCCESS) {
+      return -1;
+  }
+  return 0;
+}

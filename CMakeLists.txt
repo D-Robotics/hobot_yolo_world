@@ -95,6 +95,7 @@ link_directories(
   ${SYS_ROOT}/usr/lib/hbbpu/
   ${SYS_ROOT}/usr/lib/hbmedia/
   ${SYS_ROOT}/usr/lib/
+  ${SYS_ROOT}/usr/lib/aarch64-linux-gnu/
   ${SYS_ROOT}/usr/hobot/lib/
 )
 
@@ -113,6 +114,10 @@ ament_target_dependencies(
   sensor_msgs
   ai_msgs
   cv_bridge
+)
+
+target_link_libraries(${PROJECT_NAME}
+  tinyxml2
 )
 
 if (${SHARED_MEM})
