@@ -351,6 +351,11 @@ int YoloOutputParser::WriteVOCXML(const std::string &filename, const std::string
       XMLElement *ymaxElem = doc.NewElement("ymax");
       ymaxElem->SetText(det.bbox.ymax);
 
+      // 添加置信度score节点
+      XMLElement *scoreElem = doc.NewElement("score");
+      scoreElem->SetText(det.score);  // 假设confidence是float类型
+      objectElem->InsertEndChild(scoreElem);
+
       bndboxElem->InsertEndChild(xminElem);
       bndboxElem->InsertEndChild(yminElem);
       bndboxElem->InsertEndChild(xmaxElem);

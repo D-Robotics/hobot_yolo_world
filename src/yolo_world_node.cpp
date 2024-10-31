@@ -36,6 +36,8 @@ std::string Convert2XML(const std::string& filePath) {
     size_t dotPos = fileName.find_last_of('.');
     if (dotPos != std::string::npos) {
         fileName.replace(dotPos, fileName.length() - dotPos, ".xml");
+    } else {
+        fileName += ".xml"; // 如果没有后缀，直接加上 .xml
     }
     return fileName;
 }
