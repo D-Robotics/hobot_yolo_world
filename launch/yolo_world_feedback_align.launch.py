@@ -82,7 +82,7 @@ def generate_launch_description():
 
     feedback_loop_arg = DeclareLaunchArgument(
         'publish_is_loop',
-        default_value='False',
+        default_value='True',
         description='feedback loop turn')
 
     fb_node = IncludeLaunchDescription(
@@ -95,6 +95,7 @@ def generate_launch_description():
             'publish_image_format': 'jpg',
             'publish_is_shared_mem': 'False',
             'publish_message_topic_name': '/image',
+            'publish_is_compressed_img_pub': 'True',
             'publish_fps': '10',
             'publish_is_loop': LaunchConfiguration('publish_is_loop'),
             'publish_output_image_w': LaunchConfiguration('yolo_world_image_width'),
@@ -102,17 +103,17 @@ def generate_launch_description():
         }.items()
     )
 
-    # jpeg图片编码&发布pkg
-    jpeg_codec_node = IncludeLaunchDescription(
+    # jpeg->nv12
+    nv12_codec_node = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(
                 get_package_share_directory('hobot_codec'),
-                'launch/hobot_codec_encode.launch.py')),
+                'launch/hobot_codec_decode.launch.py')),
         launch_arguments={
             'codec_in_mode': 'ros',
             'codec_out_mode': 'ros',
             'codec_sub_topic': '/image',
-            'codec_pub_topic': '/image_jpeg'
+            'codec_pub_topic': '/image_raw'
         }.items()
     )
 
@@ -123,7 +124,7 @@ def generate_launch_description():
                 get_package_share_directory('websocket'),
                 'launch/websocket.launch.py')),
         launch_arguments={
-            'websocket_image_topic': '/image_jpeg',
+            'websocket_image_topic': '/image',
             'websocket_image_type': 'mjpeg',
             'websocket_smart_topic': LaunchConfiguration("yolo_world_msg_pub_topic_name")
         }.items()
@@ -137,6 +138,7 @@ def generate_launch_description():
         parameters=[
             {"feed_type": 1},
             {"is_shared_mem_sub": 0},
+            {"ros_img_sub_topic_name": '/image_raw'},
             {"dump_ai_result": LaunchConfiguration(
                 "yolo_world_dump_ai_result")},
             {"dump_raw_img": LaunchConfiguration(
@@ -190,7 +192,7 @@ def generate_launch_description():
         # 图片发布pkg
         fb_node,
         # 图片编解码&发布pkg
-        jpeg_codec_node,
+        nv12_codec_node,
         # 启动yoloworld pkg
         yolo_world_node,
         # 启动web展示pkg

@@ -633,11 +633,12 @@ int YoloWorldNode::PostProcess(
 
   if (dump_ai_result_) {
     if (parser_output->ratio != 1.0) {
-      for (auto &rect : det_result->perception.det) {
-        rect.bbox.xmin *= parser_output->ratio;
-        rect.bbox.ymin *= parser_output->ratio;
-        rect.bbox.xmax *= parser_output->ratio;
-        rect.bbox.ymax *= parser_output->ratio;
+      auto &rects = det_result->perception.det;
+      for (int i = 0; i < rects.size(); i++) {
+        rects[i].bbox.xmin = pub_data->targets[i].rois[0].rect.x_offset;
+        rects[i].bbox.ymin = pub_data->targets[i].rois[0].rect.y_offset;
+        rects[i].bbox.xmax = pub_data->targets[i].rois[0].rect.x_offset + pub_data->targets[i].rois[0].rect.width;
+        rects[i].bbox.ymax = pub_data->targets[i].rois[0].rect.y_offset + pub_data->targets[i].rois[0].rect.height;
       }
     }
     std::string file_name = Convert2XML(parser_output->msg_header->frame_id);
