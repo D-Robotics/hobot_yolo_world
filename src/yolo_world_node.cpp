@@ -139,6 +139,17 @@ int ResizeNV12Img(const char *in_img_data,
 YoloWorldNode::YoloWorldNode(const std::string &node_name,
                                const NodeOptions &options)
     : DnnNode(node_name, options) {
+
+  bool roi = false;
+  float roi_x1 = 0.0;
+  float roi_y1 = 0.0;
+  float roi_x2 = -1;
+  float roi_y2 = 0.0;
+  float roi_x3 = -1;
+  float roi_y3 = -1;
+  float roi_x4 = 0.0;
+  float roi_y4 = -1;
+
   // 更新配置
   this->declare_parameter<std::string>("model_file_name", model_file_name_);
   this->declare_parameter<std::string>("vocabulary_file_name", vocabulary_file_name_);
@@ -164,6 +175,15 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
                                        ai_msg_pub_topic_name_);
   this->declare_parameter<std::string>("ros_img_sub_topic_name",
                                        ros_img_sub_topic_name_);
+  this->declare_parameter<bool>("roi", roi);
+  this->declare_parameter<float>("roi_x1", roi_x1);
+  this->declare_parameter<float>("roi_y1", roi_y1);
+  this->declare_parameter<float>("roi_x2", roi_x2);
+  this->declare_parameter<float>("roi_y2", roi_y1);
+  this->declare_parameter<float>("roi_x3", roi_x3);
+  this->declare_parameter<float>("roi_y3", roi_y3);
+  this->declare_parameter<float>("roi_x4", roi_x4);
+  this->declare_parameter<float>("roi_y4", roi_y4);
 
   this->get_parameter<std::string>("model_file_name", model_file_name_);
   this->get_parameter<std::string>("vocabulary_file_name", vocabulary_file_name_);
@@ -187,6 +207,15 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   this->get_parameter<double>("y_offset", y_offset_);
   this->get_parameter<std::string>("ai_msg_pub_topic_name", ai_msg_pub_topic_name_);
   this->get_parameter<std::string>("ros_img_sub_topic_name", ros_img_sub_topic_name_);
+  this->get_parameter<bool>("roi", roi);
+  this->get_parameter<float>("roi_x1", roi_x1);
+  this->get_parameter<float>("roi_y1", roi_y1);
+  this->get_parameter<float>("roi_x2", roi_x2);
+  this->get_parameter<float>("roi_y2", roi_y2);
+  this->get_parameter<float>("roi_x3", roi_x3);
+  this->get_parameter<float>("roi_y3", roi_y3);
+  this->get_parameter<float>("roi_x4", roi_x4);
+  this->get_parameter<float>("roi_y4", roi_y4);
 
   {
     std::stringstream ss;
@@ -246,18 +275,40 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
   auto model = GetModel();
   hbDNNTensorProperties tensor_properties;
   model->GetOutputTensorProperties(tensor_properties, 0);
-  num_class_ = tensor_properties.alignedShape.dimensionSize[3];
-
+  num_class_ = tensor_properties.validShape.dimensionSize[3];
   model->GetInputTensorProperties(tensor_properties, 0);
   is_nv12_ = tensor_properties.tensorType == HB_DNN_IMG_TYPE_NV12 ? true : false;
+  int input_shape_h = tensor_properties.validShape.dimensionSize[2];
+  int input_shape_w = tensor_properties.validShape.dimensionSize[3];
+  roi_x2 = roi_x2 == -1 ? 1280 : roi_x2;
+  roi_x3 = roi_x3 == -1 ? 1280 : roi_x3;
+  roi_y3 = roi_y3 == -1 ? 1080 : roi_y3;
+  roi_y4 = roi_y4 == -1 ? 1080 : roi_y4;
 
-  parser = std::make_shared<YoloOutputParser>();
-  parser->SetScoreThreshold(score_threshold_);
-  parser->SetIouThreshold(iou_threshold_);
-  parser->SetTopkThreshold(nms_top_k_);
-  parser->SetFilterX(filterx_);
-  parser->SetFilterY(filtery_);
-  parser->SetClassMode(class_mode_);
+  roi_x1 = roi_x1 * input_shape_w / 1280;
+  roi_x2 = roi_x2 * input_shape_w / 1280;
+  roi_x3 = roi_x3 * input_shape_w / 1280;
+  roi_x4 = roi_x4 * input_shape_w / 1280;
+
+  roi_y1 = roi_y1 * input_shape_w * 3 / 4 / 960;
+  roi_y2 = roi_y2 * input_shape_w * 3 / 4 / 960;
+  roi_y3 = roi_y3 * input_shape_w * 3 / 4 / 960;
+  roi_y4 = roi_y4 * input_shape_w * 3 / 4 / 960;
+
+  {
+    std::stringstream ss;
+    ss << "Parameter:"
+       << "\n roi: " << roi
+       << "\n roi_x1: " << roi_x1
+       << "\n roi_y1: " << roi_y1
+       << "\n roi_x2: " << roi_x2
+       << "\n roi_y2: " << roi_y2
+       << "\n roi_x3: " << roi_x3
+       << "\n roi_y3: " << roi_y3
+       << "\n roi_x4: " << roi_x4
+       << "\n roi_y4: " << roi_y4;
+    RCLCPP_WARN(rclcpp::get_logger("hobot_yolo_world"), "%s", ss.str().c_str());
+  }
 
   if (LoadVocabulary() != 0) {
     return;
@@ -277,6 +328,19 @@ YoloWorldNode::YoloWorldNode(const std::string &node_name,
     std::string command = "mkdir -p " + dump_render_path_;
     system(command.c_str());
   }
+
+  parser = std::make_shared<YoloOutputParser>(num_class_, input_shape_h, input_shape_w, roi);
+  parser->SetScoreThreshold(score_threshold_);
+  parser->SetIouThreshold(iou_threshold_);
+  parser->SetTopkThreshold(nms_top_k_);
+  parser->SetFilterX(filterx_);
+  parser->SetFilterY(filtery_);
+  parser->SetClassMode(class_mode_);
+
+  parser->SetPoint(roi_x1, roi_y1);
+  parser->SetPoint(roi_x2, roi_y2);
+  parser->SetPoint(roi_x3, roi_y3);
+  parser->SetPoint(roi_x4, roi_y4);
 
   // 创建AI消息的发布者
   RCLCPP_WARN(rclcpp::get_logger("hobot_yolo_world"),
@@ -379,14 +443,18 @@ int YoloWorldNode::LoadVocabulary() {
   }
 
   if (class_names_.size() != num_class_) {
-    RCLCPP_WARN(rclcpp::get_logger("hobot_yolo_world"),
+    RCLCPP_ERROR(rclcpp::get_logger("hobot_yolo_world"),
               "Vocabulary num[%d] != Num Class[%d] !", class_names_.size(), num_class_);
-    int num = class_names_.size();
-    for (int i = 0; i < num_class_ - num; i++) {
-      std::string name = "None"; 
-      class_names_.emplace_back(name);
-    }
-    return 0;
+    return -1;
+  }
+  int num = class_names_.size();
+  for (int i = 0; i < num; i++) {
+    std::string name = class_names_[i];
+    class_names_.emplace_back(name + "_original");
+  }
+  num = class_names_.size();
+  for (int i = 0; i < num; i++) {
+    std::string name = class_names_[i];
   }
   return 0;
 }

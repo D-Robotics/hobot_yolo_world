@@ -32,9 +32,17 @@ using hobot::dnn_node::output_parser::DnnParserResult;
 using hobot::dnn_node::output_parser::Perception;
 using hobot::dnn_node::DNNTensor;
 
+struct Point {
+    float x, y;
+};
+
 class YoloOutputParser {
  public:
-  YoloOutputParser() {}
+  YoloOutputParser(int num_class, int input_shape_h, int input_shape_w, bool roi) {
+                num_class_ = num_class;
+                input_shape_h_ = input_shape_h;
+                input_shape_w_ = input_shape_w;
+                roi_ = roi;}
   ~YoloOutputParser() {}
 
   int32_t Parse(
@@ -67,6 +75,11 @@ class YoloOutputParser {
   int32_t SetFilterX(int filterx) {filterx_ = filterx; return 0;}
   int32_t SetFilterY(int filtery) {filtery_ = filtery; return 0;}
   int32_t SetClassMode(int class_mode) {class_mode_ = class_mode; return 0;}
+  int32_t SetPoint(float x, float y) {
+        Point point;
+        point.x = x;
+        point.y = y;
+        points_.push_back(point); return 0;}
 
   int32_t WriteVOCXML(const std::string &filename, const std::string &imagePath, int imageWidth, int imageHeight, int depth, const std::vector<Detection> &detections);
 
@@ -84,10 +97,14 @@ class YoloOutputParser {
   float iou_threshold_ = 0.5;
   int nms_top_k_ = 100;
 
-  int input_shape = 640;
+  int input_shape_h_ = 672;
+  int input_shape_w_ = 896;
   int filterx_ = 0;
   int filtery_ = 0;
   int class_mode_ = 0;
+  int num_class_ = 0;
+  std::vector<Point> points_;
+  bool roi_ = false;
 
   std::vector<Detection> dets1_;
   std::vector<Detection> dets2_;

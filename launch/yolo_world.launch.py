@@ -28,10 +28,10 @@ def generate_launch_description():
 
     # args that can be set from the command line or a default will be used
     image_width_launch_arg = DeclareLaunchArgument(
-        "yolo_world_image_width", default_value=TextSubstitution(text="1920")
+        "yolo_world_image_width", default_value=TextSubstitution(text="1280")
     )
     image_height_launch_arg = DeclareLaunchArgument(
-        "yolo_world_image_height", default_value=TextSubstitution(text="1080")
+        "yolo_world_image_height", default_value=TextSubstitution(text="960")
     )
     msg_pub_topic_name_launch_arg = DeclareLaunchArgument(
         "yolo_world_msg_pub_topic_name", default_value=TextSubstitution(text="hobot_yolo_world")
@@ -198,6 +198,15 @@ def generate_launch_description():
         parameters=[
             {"feed_type": 1},
             {"is_shared_mem_sub": 1},
+            {"roi": False},
+            {"roi_x1": 320.0},
+            {"roi_y1": 546.0},
+            {"roi_x2": 960.0},
+            {"roi_y2": 546.0},
+            {"roi_x3": 1280.0},
+            {"roi_y3": 831.0},
+            {"roi_x4": 0.0},
+            {"roi_y4": 831.0},
             {"dump_raw_img": LaunchConfiguration(
                 "yolo_world_dump_raw_img")},
             {"dump_render_img": LaunchConfiguration(

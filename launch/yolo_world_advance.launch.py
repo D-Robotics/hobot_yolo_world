@@ -57,6 +57,9 @@ def generate_launch_description():
     filtery_launch_arg = DeclareLaunchArgument(
         "yolo_world_filtery", default_value=TextSubstitution(text="0")
     )
+    roi_launch_arg = DeclareLaunchArgument(
+        "yolo_world_roi", default_value=TextSubstitution(text="False")
+    )
     # jpeg->nv12
     nv12_codec_node = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -108,6 +111,16 @@ def generate_launch_description():
             {"is_homography": 1},
             {"class_mode": 1},
             {"y_offset": 800.0},
+            {"roi": LaunchConfiguration(
+                "yolo_world_roi")},
+            {"roi_x1": 320.0},
+            {"roi_y1": 546.0},
+            {"roi_x2": 960.0},
+            {"roi_y2": 546.0},
+            {"roi_x3": 1280.0},
+            {"roi_y3": 831.0},
+            {"roi_x4": 0.0},
+            {"roi_y4": 831.0},
             {"ros_img_sub_topic_name": '/image_raw'},
             {"ai_msg_pub_topic_name": '/hobot_yolo_world'},
             {"model_file_name": LaunchConfiguration(
@@ -122,7 +135,7 @@ def generate_launch_description():
                 "yolo_world_filtery")},
             {"port_interaction": LaunchConfiguration("ws_port_interaction")}
         ],
-        arguments=['--ros-args', '--log-level', 'warn']
+        arguments=['--ros-args', '--log-level', 'info']
     )
 
     return LaunchDescription([
@@ -137,6 +150,7 @@ def generate_launch_description():
         trigger_mode_launch_arg,
         filterx_launch_arg,
         filtery_launch_arg,
+        roi_launch_arg,
         # 图片编解码&发布pkg
         nv12_codec_node,
         # 启动yoloworld pkg

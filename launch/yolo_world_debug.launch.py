@@ -66,7 +66,22 @@ def generate_launch_description():
                 'launch/websocket.launch.py')),
         launch_arguments={
             'websocket_image_type': 'mjpeg',
+            'websocket_image_topic': '/image',
             'websocket_smart_topic': LaunchConfiguration("yolo_world_msg_pub_topic_name")
+        }.items()
+    )
+
+    # jpeg图片编码&发布pkg
+    jpeg_codec_node = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('hobot_codec'),
+                'launch/hobot_codec_encode.launch.py')),
+        launch_arguments={
+            'codec_in_mode': 'ros',
+            'codec_out_mode': 'ros',
+            'codec_sub_topic': '/image_combine_rectify',
+            'codec_pub_topic': '/image'
         }.items()
     )
 
@@ -82,7 +97,7 @@ def generate_launch_description():
                 "yolo_world_dump_render_img")},
             {"msg_pub_topic_name": LaunchConfiguration(
                 "yolo_world_msg_pub_topic_name")},
-            {"ros_img_sub_topic_name": "/image_combine_rectify"}
+            {"ros_img_sub_topic_name": "/image_combine_rectify"},
             {"model_file_name": LaunchConfiguration(
                 "yolo_world_model_file_name")},
             {"vocabulary_file_name": LaunchConfiguration(
@@ -117,6 +132,7 @@ def generate_launch_description():
         trigger_mode_launch_arg,
         filterx_launch_arg,
         filtery_launch_arg,
+        jpeg_codec_node,
         # 启动yoloworld pkg
         yolo_world_node,
         # 启动web展示pkg

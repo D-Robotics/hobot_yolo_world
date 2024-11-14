@@ -14,6 +14,84 @@
 
 #include "include/post_process/yolo_world_output_parser.h"
 
+// 计算直线的斜率和截距（通过两个点）
+void lineEquation(const Point& p1, const Point& p2, float& k, float& b) {
+
+    if ((p2.x - p1.x) == 0) {
+      k = 0;
+      b = p1.x;
+      return;
+    }
+    k = (p2.y - p1.y) / (p2.x - p1.x);
+    b = p1.y - k * p1.x;
+}
+
+// 判断检测框的点是否在梯形边界内
+bool isPointInTrapezoid(const Point& point, float y_min, float y_max, double k1, double b1, double k2, double b2) {
+    // 检查点的 y 值是否在上下边范围内
+    if (point.y < y_min || point.y > y_max) {
+        return false;
+    }
+
+    if (k1 == 0 && point.x < b1) {
+      return false;
+    }
+    if (k2 == 0 && point.x > b2) {
+      return false;
+    }
+    if (k1 != 0 && k2 != 0) {
+      // 检查点是否在左边和右边的斜线内
+      float y_left = k1 * point.x + b1;
+      float y_right = k2 * point.x + b2;
+      return (point.y >= y_left && point.y >= y_right);
+    }
+    return true;
+}
+
+// 判断检测框的四个顶点是否都在梯形内
+bool isBoxInTrapezoid(const std::vector<Point>& trapezoid, const Detection& det) {
+    
+    // float y_min = det.bbox.ymin;
+    // float y_max = det.bbox.ymax;
+    float y_min = std::min(trapezoid[0].y, trapezoid[1].y);
+    float y_max = std::max(trapezoid[2].y, trapezoid[3].y);
+
+    // 计算梯形左边和右边的直线方程
+    float k1, b1, k2, b2;
+
+    lineEquation(trapezoid[0], trapezoid[3], k1, b1);  // 左边斜线
+    lineEquation(trapezoid[1], trapezoid[2], k2, b2);  // 右边斜线
+
+    Point point;
+    // point.x = det.bbox.xmin;
+    // point.y = det.bbox.ymin;
+    // if (!isPointInTrapezoid(point, y_min, y_max, k1, b1, k2, b2)) {
+    //   return false;
+    // }
+    // point.x = det.bbox.xmax;
+    // point.y = det.bbox.ymin;
+    // if (!isPointInTrapezoid(point, y_min, y_max, k1, b1, k2, b2)) {
+    //   return false;
+    // }
+    point.x = (det.bbox.xmax + det.bbox.xmin) / 2;
+    point.y = det.bbox.ymin;
+    if (!isPointInTrapezoid(point, y_min, y_max, k1, b1, k2, b2)) {
+      return false;
+    }
+
+    point.x = det.bbox.xmin;
+    point.y = det.bbox.ymax;
+    if (!isPointInTrapezoid(point, y_min, y_max, k1, b1, k2, b2)) {
+      return false;
+    }
+    point.x = det.bbox.xmax;
+    point.y = det.bbox.ymax;
+    if (!isPointInTrapezoid(point, y_min, y_max, k1, b1, k2, b2)) {
+      return false;
+    }
+    return true;
+}
+
 int32_t YoloOutputParser::Parse(
     std::shared_ptr<DnnParserResult> &output,
     std::vector<std::shared_ptr<DNNTensor>> &output_tensors,
@@ -161,18 +239,17 @@ int32_t YoloOutputParser::PostProcessWithoutDecode(
       float xmax = static_cast<float>(box_data[2]) * tensors[1]->properties.scale.scaleData[0];
       float ymax = static_cast<float>(box_data[3]) * tensors[1]->properties.scale.scaleData[0];
       Bbox bbox(xmin, ymin, xmax, ymax);
+      Detection det = Detection(static_cast<int>(max_index),
+                      max_score,
+                      bbox,
+                      class_names[max_index].c_str());
+      if (roi_ && !isBoxInTrapezoid(points_, det)) {
+        break;
+      }
       if (class_mode_ == 1 && class_names[max_index] != "skein") {
-        dets.push_back(
-            Detection(static_cast<int>(max_index),
-                      max_score,
-                      bbox,
-                      class_names[max_index].c_str()));
+        dets.push_back(det);
       } else if (class_mode_ == 0) {
-        dets.push_back(
-            Detection(static_cast<int>(max_index),
-                      max_score,
-                      bbox,
-                      class_names[max_index].c_str()));
+        dets.push_back(det);
       }
     }
   }
@@ -190,6 +267,11 @@ int32_t YoloOutputParser::PostProcessWithoutDecode(
   dets1_.clear();
   for (auto &det: tmpdets) {
     dets1_.push_back(det);
+    perception.det.push_back(
+          Detection(det.id,
+                    det.score,
+                    det.bbox,
+                    class_names[det.id + num_class_].c_str()));
   }
   Filter(tmpdets, perception.det);
   return 0;
@@ -244,8 +326,8 @@ int32_t YoloOutputParser::DecodeLayerNCHW(const int16_t* output_data,
                                           const int vaild_w,
                                           const int aligned_w) {
   int stride = vaild_h * aligned_w;
-  float stride_x = input_shape / vaild_w;
-  float stride_y = input_shape / vaild_h;
+  float stride_x = input_shape_w_ / vaild_w;
+  float stride_y = input_shape_h_ / vaild_h;
   float score_threshold_x = InverseSigmoid(score_threshold_) / scale_data[0];
 
   for (int h = 0; h < vaild_h; h++) {

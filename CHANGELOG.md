@@ -1,5 +1,10 @@
 # Changelog for package hobot_yolo_world
 
+tros_0.5.9 (2024-11-14)
+------------------
+1. 新增播放工程策略过滤前的检测框信息。
+2. 新增通过输入梯形RoI区域, 过滤非区域内检测框的功能, 默认分辨率为1280x720。
+
 tros_0.5.7 (2024-11-07)
 ------------------
 1. 新增 yolo_world_feedback_align.launch.py, 回灌结果与client server端结果数值一致性对齐。

@@ -97,6 +97,7 @@ def generate_launch_description():
             'publish_message_topic_name': '/image',
             'publish_is_compressed_img_pub': 'True',
             'publish_fps': '10',
+            'publish_name_mode': '1',
             'publish_is_loop': LaunchConfiguration('publish_is_loop'),
             'publish_output_image_w': LaunchConfiguration('yolo_world_image_width'),
             'publish_output_image_h': LaunchConfiguration('yolo_world_image_height')
@@ -139,6 +140,15 @@ def generate_launch_description():
             {"feed_type": 1},
             {"is_shared_mem_sub": 0},
             {"ros_img_sub_topic_name": '/image_raw'},
+            {"roi": False},
+            {"roi_x1": 0.0},
+            {"roi_y1": 546.0},
+            {"roi_x2": 1280.0},
+            {"roi_y2": 546.0},
+            {"roi_x3": 1280.0},
+            {"roi_y3": 831.0},
+            {"roi_x4": 0.0},
+            {"roi_y4": 831.0},
             {"dump_ai_result": LaunchConfiguration(
                 "yolo_world_dump_ai_result")},
             {"dump_raw_img": LaunchConfiguration(
