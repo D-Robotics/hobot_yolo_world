@@ -56,9 +56,6 @@ struct YoloWorldOutput : public DnnNodeOutput {
   float ratio = 1.0;  //缩放比例系数，无需缩放为1
 
   // 图片数据用于渲染
-  std::shared_ptr<hobot::dnn_node::DNNTensor> tensor_image;
-
-  // 图片数据用于渲染
   std::shared_ptr<hobot::dnn_node::NV12PyramidInput> pyramid;
 
   // 图片数据用于保存
@@ -122,7 +119,7 @@ class YoloWorldNode : public DnnNode {
 
   // 用于解析的配置文件，以及解析后的数据
   std::string vocabulary_file_name_ = "config/offline_vocabulary_embeddings.json";
-  std::string model_file_name_ = "config/DOSOD_L_without_nms_nv12_v3.bin";
+  std::string model_file_name_ = "config/v3.1.0.bin";
   
   std::string model_name_ = "";
 
@@ -135,7 +132,6 @@ class YoloWorldNode : public DnnNode {
 
   int filterx_ = 0;
   int filtery_ = 0;
-  bool is_nv12_ = true;
 
   // 加载模型后，查询出模型输入分辨率
   int model_input_width_ = 640;

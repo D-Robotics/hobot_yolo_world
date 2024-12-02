@@ -54,7 +54,7 @@ def generate_launch_description():
         "yolo_world_dump_render_path", default_value=TextSubstitution(text=".")
     )
     model_file_name_launch_arg = DeclareLaunchArgument(
-        "yolo_world_model_file_name", default_value=TextSubstitution(text="config/DOSOD_L_without_nms_nv12_v3.bin")
+        "yolo_world_model_file_name", default_value=TextSubstitution(text="config/v3.1.0.bin")
     )
     vocabulary_file_name_launch_arg = DeclareLaunchArgument(
         "yolo_world_vocabulary_file_name", default_value=TextSubstitution(text="config/offline_vocabulary_embeddings.json")
@@ -73,6 +73,9 @@ def generate_launch_description():
     )
     class_mode_launch_arg = DeclareLaunchArgument(
         "yolo_world_class_mode", default_value=TextSubstitution(text="0")
+    )
+    roi_launch_arg = DeclareLaunchArgument(
+        "yolo_world_roi", default_value=TextSubstitution(text="False")
     )
     # 本地图片发布
     feedback_picture_arg = DeclareLaunchArgument(
@@ -140,15 +143,16 @@ def generate_launch_description():
             {"feed_type": 1},
             {"is_shared_mem_sub": 0},
             {"ros_img_sub_topic_name": '/image_raw'},
-            {"roi": False},
+            {"roi": LaunchConfiguration(
+                "yolo_world_roi")},
             {"roi_x1": 0.0},
-            {"roi_y1": 546.0},
+            {"roi_y1": 480.0},
             {"roi_x2": 1280.0},
-            {"roi_y2": 546.0},
+            {"roi_y2": 480.0},
             {"roi_x3": 1280.0},
-            {"roi_y3": 831.0},
+            {"roi_y3": 960.0},
             {"roi_x4": 0.0},
-            {"roi_y4": 831.0},
+            {"roi_y4": 960.0},
             {"dump_ai_result": LaunchConfiguration(
                 "yolo_world_dump_ai_result")},
             {"dump_raw_img": LaunchConfiguration(
@@ -199,6 +203,7 @@ def generate_launch_description():
         filtery_launch_arg,
         class_mode_launch_arg,
         feedback_loop_arg,
+        roi_launch_arg,
         # 图片发布pkg
         fb_node,
         # 图片编解码&发布pkg

@@ -23,15 +23,21 @@ from launch.substitutions import LaunchConfiguration
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from ament_index_python import get_package_share_directory
 from ament_index_python.packages import get_package_prefix
+import subprocess
+import time
 
 def generate_launch_description():
+
+    subprocess.run("i2cset -f -y 2 0x1c 0x1a 0xb4", shell=True)
+    time.sleep(0.5)
+    subprocess.run("echo 1200000000 >/sys/kernel/debug/clk/bpu_mclk_2x_clk/clk_rate", shell=True)
 
     # args that can be set from the command line or a default will be used
     msg_pub_topic_name_launch_arg = DeclareLaunchArgument(
         "yolo_world_msg_pub_topic_name", default_value=TextSubstitution(text="hobot_yolo_world")
     )
     model_file_name_launch_arg = DeclareLaunchArgument(
-        "yolo_world_model_file_name", default_value=TextSubstitution(text="config/DOSOD_L_without_nms_nv12_v3.bin")
+        "yolo_world_model_file_name", default_value=TextSubstitution(text="config/v3.1.0.bin")
     )
     vocabulary_file_name_launch_arg = DeclareLaunchArgument(
         "yolo_world_vocabulary_file_name", default_value=TextSubstitution(text="config/offline_vocabulary_embeddings.json")
@@ -41,6 +47,18 @@ def generate_launch_description():
     )
     dump_render_launch_arg = DeclareLaunchArgument(
         "yolo_world_dump_render_img", default_value=TextSubstitution(text="0")
+    )
+    dump_ai_launch_arg = DeclareLaunchArgument(
+        "yolo_world_dump_ai_result", default_value=TextSubstitution(text="0")
+    )
+    dump_raw_path_launch_arg = DeclareLaunchArgument(
+        "yolo_world_dump_raw_path", default_value=TextSubstitution(text=".")
+    )
+    dump_ai_path_launch_arg = DeclareLaunchArgument(
+        "yolo_world_dump_ai_path", default_value=TextSubstitution(text=".")
+    )
+    dump_render_path_launch_arg = DeclareLaunchArgument(
+        "yolo_world_dump_render_path", default_value=TextSubstitution(text=".")
     )
     port_interaction_arg = DeclareLaunchArgument(
         "ws_port_interaction", default_value=TextSubstitution(text="8081")
@@ -102,6 +120,8 @@ def generate_launch_description():
                 "yolo_world_dump_raw_img")},
             {"dump_render_img": LaunchConfiguration(
                 "yolo_world_dump_render_img")},
+            {"dump_ai_result": LaunchConfiguration(
+                "yolo_world_dump_ai_result")},
             {"msg_pub_topic_name": LaunchConfiguration(
                 "yolo_world_msg_pub_topic_name")},
             {"score_threshold": LaunchConfiguration(
@@ -110,17 +130,17 @@ def generate_launch_description():
             {"nms_top_k": 50},
             {"is_homography": 1},
             {"class_mode": 1},
-            {"y_offset": 800.0},
+            {"y_offset": 810.0},
             {"roi": LaunchConfiguration(
                 "yolo_world_roi")},
-            {"roi_x1": 320.0},
-            {"roi_y1": 546.0},
-            {"roi_x2": 960.0},
-            {"roi_y2": 546.0},
+            {"roi_x1": 0.0},
+            {"roi_y1": 480.0},
+            {"roi_x2": 1280.0},
+            {"roi_y2": 480.0},
             {"roi_x3": 1280.0},
-            {"roi_y3": 831.0},
+            {"roi_y3": 960.0},
             {"roi_x4": 0.0},
-            {"roi_y4": 831.0},
+            {"roi_y4": 960.0},
             {"ros_img_sub_topic_name": '/image_raw'},
             {"ai_msg_pub_topic_name": '/hobot_yolo_world'},
             {"model_file_name": LaunchConfiguration(
@@ -141,8 +161,12 @@ def generate_launch_description():
     return LaunchDescription([
         web_smart_topic_arg,
         msg_pub_topic_name_launch_arg,
+        dump_ai_launch_arg,
         dump_raw_launch_arg,
         dump_render_launch_arg,
+        dump_ai_path_launch_arg,
+        dump_raw_path_launch_arg,
+        dump_render_path_launch_arg,
         port_interaction_arg,
         model_file_name_launch_arg,
         vocabulary_file_name_launch_arg,

@@ -67,12 +67,6 @@ class ImageUtils {
  public:
 
   static int Render(
-      const std::shared_ptr<hobot::dnn_node::DNNTensor> &tensor,
-      const ai_msgs::msg::PerceptionTargets::UniquePtr &perception,
-      const int img_h,
-      const int img_w);
-
-  static int Render(
     const std::shared_ptr<hobot::dnn_node::NV12PyramidInput> &pyramid,
     const ai_msgs::msg::PerceptionTargets::UniquePtr &ai_msg,
     const int img_h,
