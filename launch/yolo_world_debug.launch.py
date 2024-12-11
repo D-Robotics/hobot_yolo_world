@@ -39,8 +39,23 @@ def generate_launch_description():
     dump_render_launch_arg = DeclareLaunchArgument(
         "yolo_world_dump_render_img", default_value=TextSubstitution(text="0")
     )
+    dump_raw_launch_arg = DeclareLaunchArgument(
+        "yolo_world_dump_raw_img", default_value=TextSubstitution(text="0")
+    )
     model_file_name_launch_arg = DeclareLaunchArgument(
-        "yolo_world_model_file_name", default_value=TextSubstitution(text="config/v3.1.0.bin")
+        "yolo_world_model_file_name", default_value=TextSubstitution(text="config/v0.3.3.0.bin")
+    )
+    dump_ai_launch_arg = DeclareLaunchArgument(
+        "yolo_world_dump_ai_result", default_value=TextSubstitution(text="0")
+    )
+    dump_raw_path_launch_arg = DeclareLaunchArgument(
+        "yolo_world_dump_raw_path", default_value=TextSubstitution(text=".")
+    )
+    dump_ai_path_launch_arg = DeclareLaunchArgument(
+        "yolo_world_dump_ai_path", default_value=TextSubstitution(text=".")
+    )
+    dump_render_path_launch_arg = DeclareLaunchArgument(
+        "yolo_world_dump_render_path", default_value=TextSubstitution(text=".")
     )
     vocabulary_file_name_launch_arg = DeclareLaunchArgument(
         "yolo_world_vocabulary_file_name", default_value=TextSubstitution(text="config/offline_vocabulary_embeddings.json")
@@ -93,8 +108,18 @@ def generate_launch_description():
         parameters=[
             {"feed_type": 1},
             {"is_shared_mem_sub": 0},
+            {"dump_ai_result": LaunchConfiguration(
+                "yolo_world_dump_ai_result")},
+            {"dump_raw_img": LaunchConfiguration(
+                "yolo_world_dump_raw_img")},
             {"dump_render_img": LaunchConfiguration(
                 "yolo_world_dump_render_img")},
+            {"dump_ai_path": LaunchConfiguration(
+                "yolo_world_dump_ai_path")},
+            {"dump_render_path": LaunchConfiguration(
+                "yolo_world_dump_render_path")},
+            {"dump_raw_path": LaunchConfiguration(
+                "yolo_world_dump_raw_path")},
             {"msg_pub_topic_name": LaunchConfiguration(
                 "yolo_world_msg_pub_topic_name")},
             {"ros_img_sub_topic_name": "/image_combine_rectify"},
@@ -108,8 +133,30 @@ def generate_launch_description():
                 "yolo_world_filterx")},
             {"filtery": LaunchConfiguration(
                 "yolo_world_filtery")},
+            {"roi": True},
+            {"roi_x1": 0.0},
+            {"roi_y1": 480.0},
+            {"roi_x2": 1280.0},
+            {"roi_y2": 480.0},
+            {"roi_x3": 1280.0},
+            {"roi_y3": 960.0},
+            {"roi_x4": 0.0},
+            {"roi_y4": 960.0},
             {"score_threshold": LaunchConfiguration(
                 "yolo_world_score_threshold")}
+        ],
+        arguments=['--ros-args', '--log-level', 'warn']
+    )
+
+    # 遥控控制开关
+    joy_develop_node = Node(
+        package='hobot_joy_develop',
+        executable='hobot_joy_develop',
+        output='screen',
+        parameters=[
+            {"is_shared_mem_sub": 0},
+            {"ros_img_sub_topic_name": "/image_combine_rectify"},
+            {"dump_raw_path": "capture"}
         ],
         arguments=['--ros-args', '--log-level', 'warn']
     )
@@ -125,7 +172,12 @@ def generate_launch_description():
         image_width_launch_arg,
         image_height_launch_arg,
         msg_pub_topic_name_launch_arg,
+        dump_ai_launch_arg,
         dump_render_launch_arg,
+        dump_raw_launch_arg,
+        dump_ai_path_launch_arg,
+        dump_raw_path_launch_arg,
+        dump_render_path_launch_arg,
         model_file_name_launch_arg,
         vocabulary_file_name_launch_arg,
         score_threshold_launch_arg,
@@ -136,5 +188,7 @@ def generate_launch_description():
         # 启动yoloworld pkg
         yolo_world_node,
         # 启动web展示pkg
-        web_node
+        web_node,
+        # 遥控器节点
+        joy_develop_node
     ])

@@ -54,7 +54,7 @@ def generate_launch_description():
         "yolo_world_dump_render_path", default_value=TextSubstitution(text=".")
     )
     model_file_name_launch_arg = DeclareLaunchArgument(
-        "yolo_world_model_file_name", default_value=TextSubstitution(text="config/v3.1.0.bin")
+        "yolo_world_model_file_name", default_value=TextSubstitution(text="config/v0.3.3.0.bin")
     )
     vocabulary_file_name_launch_arg = DeclareLaunchArgument(
         "yolo_world_vocabulary_file_name", default_value=TextSubstitution(text="config/offline_vocabulary_embeddings.json")

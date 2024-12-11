@@ -119,7 +119,7 @@ class YoloWorldNode : public DnnNode {
 
   // 用于解析的配置文件，以及解析后的数据
   std::string vocabulary_file_name_ = "config/offline_vocabulary_embeddings.json";
-  std::string model_file_name_ = "config/v3.1.0.bin";
+  std::string model_file_name_ = "config/v0.3.3.0.bin";
   
   std::string model_name_ = "";
 
