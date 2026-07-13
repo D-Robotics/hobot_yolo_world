@@ -1,5 +1,9 @@
 # Changelog for package hobot_yolo_world
 
+tros_0.5.0 (2026-07-13)
+------------------
+1. 适配 ROS2 Jazzy。
+
 tros_0.4.1 (2024-11-15)
 ------------------
 1. 依赖的OpenCV版本从3.4.5升级到4.X。
