@@ -21,7 +21,6 @@
 #include "rapidjson/istreamwrapper.h"
 #include "rapidjson/writer.h"
 #include "rclcpp/rclcpp.hpp"
-#include <cv_bridge/cv_bridge.h>
 #include <unistd.h>
 
 #include "dnn_node/dnn_node.h"
