@@ -1,6 +1,6 @@
 # Changelog for package hobot_yolo_world
 
-tros_0.5.0 (2026-07-13)
+tros_0.4.2 (2026-07-13)
 ------------------
 1. 适配 ROS2 Jazzy。
 
